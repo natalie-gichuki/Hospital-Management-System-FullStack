@@ -18,6 +18,11 @@ class Patient(db.Model, SerializerMixin):
         'polymorphic_on': type
     }
 
+    medical_records = db.relationship('Medical_Record', back_populates='patient', cascade='all, delete-orphan')
+
+    serialize_rules = ('-medical_records.patient',)
+
+
 
 class Inpatient(Patient):
     __tablename__ = 'inpatients'
@@ -32,4 +37,43 @@ class Inpatient(Patient):
 
 
 class Outpatient(Patient):
-    pass
+    __tablename__ = 'outpatient'
+
+    id = db.Column(db.Integer, db.ForeignKey('patients.id'), primary_key=True)
+    last_visit_date = db.Column(db.String, nullable=False)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'outpatient',
+    }
+
+
+class Medical_Record(db.Model, SerializerMixin):
+    __tablename__ = 'medical_records'
+
+    
+    serialize_rules = ('-patient.medical_records', '-doctor.medical_records')
+
+    id = db.Column(db.Integer, primary_key = True)
+    diagnosis = db.Column(db.String, nullable = False)
+    treatment = db.Column(db.String, nullable = False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable = False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable = False)
+    date = db.Column(db.String, nullable = False) 
+
+
+    patient = db.relationship('Patient', back_populates='medical_records')
+    doctor = db.relationship('Doctor', back_populates='medical_records')
+
+
+class Doctor(db.Model, SerializerMixin):
+    __tablename__ = 'doctors'
+
+    serialize_rules = ('-medical_records.doctor',)
+
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String, nullable = False)
+    email = db.Column(db.String, nullable = False)
+    specialization = db.Column(db.String, nullable = False)
+
+    medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
+    
