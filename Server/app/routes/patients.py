@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request, make_response
 from flask_restful import Resource
-from app.models import Patient
+from app.models import Patient, Outpatient, Inpatient
 from app import db
 
 
@@ -30,17 +30,43 @@ class Patient_List(Resource):
     def post(self):
         data = request.get_json()
 
-        new_patient = Patient(
-            name=data['name'],
-            age=data['age'],
-            gender=data['gender'],
-            type=data['type']
-        )
+        patient_type = data.get('type')
+
+        if patient_type == 'inpatient':
+            new_patient = Inpatient(
+                name=data['name'],
+                age=data['age'],
+                gender=data['gender'],
+                type='inpatient',
+                admission_date=data['admission_date'],
+                ward_number=data['ward_number']
+            )
+
+        elif patient_type == 'outpatient':
+            new_patient = Outpatient(
+                name=data['name'],
+                age=data['age'],
+                gender=data['gender'],
+                type='outpatient',
+                last_visit_date=data['last_visit_date']
+            )
+
+        elif patient_type == 'patient':
+            new_patient = Patient(
+                name=data['name'],
+                age=data['age'],
+                gender=data['gender'],
+                type='patient'
+            )
+
+        else:
+            return make_response({'error': 'Invalid patient type'}, 400)
 
         db.session.add(new_patient)
         db.session.commit()
 
         return make_response(new_patient.to_dict(), 201)
+
 
     
 class Patient_By_ID(Resource):
