@@ -3,3 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
