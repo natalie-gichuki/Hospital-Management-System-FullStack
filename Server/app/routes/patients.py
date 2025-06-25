@@ -49,7 +49,7 @@ class Patient_By_ID(Resource):
         patients = Patient.query.filter_by(id=id).first().to_dict()
         response = make_response(jsonify(patients), 200)
         return response 
-
+    
     def delete(self, id):
 
         patient = Patient.query.filter_by(id=id).first()
@@ -60,6 +60,13 @@ class Patient_By_ID(Resource):
         db.session.delete(patient)
         db.session.commit()
 
-        return '', 204
+        return make_response({"message": "Patient Deleted Successfully"}, 204)
 
-    
+class PatientMedicalRecords(Resource):
+    def get(self, id):
+        patient = Patient.query.get(id)
+        if not patient:
+            return make_response({"error": "Patient not found"}, 404)
+
+        records = [record.to_dict() for record in patient.medical_records]
+        return make_response(records, 200)

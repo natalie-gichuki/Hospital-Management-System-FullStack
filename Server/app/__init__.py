@@ -17,13 +17,18 @@ def create_app():
     migrate.init_app(app,db)
     api = Api(app)
 
-    from .routes.patients import HomeResource, Patient_List, Patient_By_ID
+    from .routes.patients import HomeResource, Patient_List, Patient_By_ID, PatientMedicalRecords
+    from .routes.medical_records import MedicalRecords, MedicalRecordByID
 
 
     # ✅ Add resources here
     api.add_resource(HomeResource, '/')
     api.add_resource(Patient_List, '/patients')
     api.add_resource(Patient_By_ID, '/patients/<int:id>')
+    api.add_resource(PatientMedicalRecords, '/patients/<int:id>/records')
+    api.add_resource(MedicalRecords, '/records')
+    api.add_resource(MedicalRecordByID, '/records/<int:id>')
+
 
     with app.app_context():
         from . import models
