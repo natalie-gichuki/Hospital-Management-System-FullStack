@@ -1,5 +1,6 @@
 from app import create_app, db
 from app.models import Doctor, Department, Patient
+from datetime import date
 from sqlalchemy.exc import IntegrityError
 
 app = create_app()
@@ -26,7 +27,7 @@ with app.app_context():
     doc2 = Doctor(name="Dr. Brian", specialization="Neurology", department_id=dept1.id)
     db.session.add(doc2)
 
-    patient1 = Patient(name="Jane Doe", date_of_birth="1990-04-12", contact_number="0712345678")
+    patient1 = Patient(name="Jane Doe", date_of_birth=date(1990, 4, 12), contact_number="0712345678")
     db.session.add(patient1)
 
     try:
