@@ -14,6 +14,12 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app,db)
 
+    from app.routes.departments import DepartmentList, DepartmentByID
+
+
+    api.add_resource(DepartmentList, '/departments')
+    api.add_resource(DepartmentByID, '/departments/<int:id>')
+
     with app.app_context():
         from . import models
         from .routes import appointments, departments, doctors, patients, medical_records
