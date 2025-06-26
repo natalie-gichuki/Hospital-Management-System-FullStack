@@ -1,54 +1,49 @@
 from flask import Flask
-from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_cors import CORS
-from flask_restful import Api, Resource
+from flask_jwt_extended import JWTManager
+from flask_restx import Api
 from config import Config
-
-
 
 db = SQLAlchemy()
 migrate = Migrate()
+jwt = JWTManager()
+
+api = Api(
+    title="Hospital Management System API",
+    version="1.0",
+    description="API documentation for the Hospital Management System.",
+    doc="/docs"
+)
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
     app.config.from_object(Config)
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+    CORS(app)
     db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
+    api.init_app(app)
 
-    migrate.init_app(app,db)
-    api = Api(app)
+    # === RESTX Namespaces ===
+    from app.routes.auth import auth_ns
+    from app.routes.patients import patient_ns
+    from app.routes.doctors import doctor_ns
+    from app.routes.departments import department_ns
+    from app.routes.appointments import appointments_ns
+    from app.routes.medical_records import medical_ns
 
-    from .routes.patients import HomeResource, Patient_List, Patient_By_ID, PatientMedicalRecords
-    from .routes.medical_records import MedicalRecords, MedicalRecordByID
-
-
-    # ✅ Add resources here
-    api.add_resource(HomeResource, '/')
-    api.add_resource(Patient_List, '/patients')
-    api.add_resource(Patient_By_ID, '/patients/<int:id>')
-    api.add_resource(PatientMedicalRecords, '/patients/<int:id>/records')
-    api.add_resource(MedicalRecords, '/records')
-    api.add_resource(MedicalRecordByID, '/records/<int:id>')
-
-
+    api.add_namespace(auth_ns, path="/auth")
+    api.add_namespace(patient_ns, path="/patients")
+    api.add_namespace(doctor_ns, path="/doctors")
+    api.add_namespace(department_ns, path="/departments")
+    api.add_namespace(appointments_ns, path="/appointments")
+    api.add_namespace(medical_ns, path="/medical-records")
 
     with app.app_context():
         from . import models
-        from .routes import appointments, departments, doctors, patients, medical_records
-
-        # Register blueprints
-        app.register_blueprint(doctors.doctor_bp)
-        app.register_blueprint(patients.patient_bp)
-        app.register_blueprint(appointments.appointment_bp)
-        #app.register_blueprint(departments.department_bp)
-        app.register_blueprint(medical_records.record_bp)
-
-        db.create_all()
-
+        # db.create_all()  # Only if you’re not using flask db migrate/upgrade
 
     return app

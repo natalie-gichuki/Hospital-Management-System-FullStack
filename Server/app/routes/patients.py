@@ -1,105 +1,160 @@
-
-from flask import Flask, jsonify, request, make_response
-from flask_restful import Resource
-from app.models import Patient, Outpatient, Inpatient
+from flask import request, jsonify
+from flask_restx import Namespace, Resource, fields
+from app.models import Patient
 from app import db
+from app.routes.auth import role_required
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
+from flask_jwt_extended import current_user
 
-from flask import Blueprint, jsonify
+patient_ns = Namespace('patients', description="Patient operations")
 
-patient_bp = Blueprint('patient_bp', __name__)
+# === Swagger Models ===
+patient_model = patient_ns.model('Patient', {
+    'name': fields.String(required=True, example="John Doe"),
+    'date_of_birth': fields.String(required=True, example="1990-01-01"),
+    'contact_number': fields.String(required=True, example="+254712345678"),
+    'user_id': fields.Integer(required=False, example=5),
+})
+
+update_patient_model = patient_ns.model('UpdatePatient', {
+    'name': fields.String(example="Jane Doe"),
+    'date_of_birth': fields.String(example="1992-02-02"),
+    'contact_number': fields.String(example="+254700000000"),
+    'user_id': fields.Integer(example=7),
+})
 
 
+@patient_ns.route('/')
+class PatientList(Resource):
 
-class HomeResource(Resource):
-    
+    @role_required(['admin', 'doctor', 'department_manager'])
+    @patient_ns.response(200, 'List of patients')
     def get(self):
-        
-       response = make_response(jsonify({"message": "Welcome to the Patient API!"}), 200)
-       return response
-class Patient_List(Resource):
+        """Get all patients"""
+        try:
+            patients = Patient.query.all()
+            return jsonify([p.to_dict() for p in patients])
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500
 
-    def get(self):
-        patients = [patient.to_dict() for patient in Patient.query.all()]
-
-        patient_list = [{
-           'id': patient['id'],
-           'name': patient['name'],
-           'age': patient['age'],
-           'gender': patient['gender'],
-           'type': patient['type'],
-        }for patient in patients] 
-
-        response = make_response(jsonify(patient_list), 200)
-
-        return response
-    
+    @role_required(['admin', 'department_manager', 'doctor'])
+    @patient_ns.expect(patient_model)
+    @patient_ns.response(201, 'Patient created')
+    @patient_ns.response(400, 'Invalid input')
+    @patient_ns.response(409, 'Duplicate contact number')
     def post(self):
-        data = request.get_json()
+        """Create a new patient"""
+        try:
+            data = request.get_json()
+            name = data.get('name')
+            dob_str = data.get('date_of_birth')
+            contact_number = data.get('contact_number')
+            user_id = data.get('user_id')
 
-        patient_type = data.get('type')
+            if not name or not dob_str or not contact_number:
+                return {'error': 'Name, date_of_birth, and contact_number are required'}, 400
 
-        if patient_type == 'inpatient':
-            new_patient = Inpatient(
-                name=data['name'],
-                age=data['age'],
-                gender=data['gender'],
-                type='inpatient',
-                admission_date=data['admission_date'],
-                ward_number=data['ward_number']
-            )
+            try:
+                date_of_birth = datetime.strptime(dob_str, '%Y-%m-%d').date()
+            except ValueError:
+                return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
 
-        elif patient_type == 'outpatient':
-            new_patient = Outpatient(
-                name=data['name'],
-                age=data['age'],
-                gender=data['gender'],
-                type='outpatient',
-                last_visit_date=data['last_visit_date']
-            )
+            if Patient.query.filter_by(contact_number=contact_number).first():
+                return {'error': 'Patient with this contact number already exists'}, 409
 
-        elif patient_type == 'patient':
             new_patient = Patient(
-                name=data['name'],
-                age=data['age'],
-                gender=data['gender'],
-                type='patient'
+                name=name,
+                date_of_birth=date_of_birth,
+                contact_number=contact_number,
+                user_id=user_id
             )
+            db.session.add(new_patient)
+            db.session.commit()
+            return jsonify(new_patient.to_dict()), 201
+        except IntegrityError:
+            db.session.rollback()
+            return {'error': 'Integrity error, e.g., duplicate contact number or user_id'}, 409
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500
 
-        else:
-            return make_response({'error': 'Invalid patient type'}, 400)
 
-        db.session.add(new_patient)
-        db.session.commit()
+@patient_ns.route('/<int:id>')
+class PatientByID(Resource):
 
-        return make_response(new_patient.to_dict(), 201)
-
-
-    
-class Patient_By_ID(Resource):
+    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    @patient_ns.response(200, 'Patient details')
+    @patient_ns.response(404, 'Patient not found')
     def get(self, id):
+        """Get a patient by ID"""
+        try:
+            patient = Patient.query.get(id)
+            if not patient:
+                return {'error': 'Patient not found'}, 404
 
-        patients = Patient.query.filter_by(id=id).first().to_dict()
-        response = make_response(jsonify(patients), 200)
-        return response 
-    
+            if current_user.role == 'patient' and current_user.patient and current_user.patient.id != patient.id:
+                return {'msg': 'Access denied: Patients can only view their own records'}, 403
+
+            return jsonify(patient.to_dict())
+        except Exception as e:
+            return {'error': str(e)}, 500
+
+    @role_required(['admin', 'department_manager', 'doctor'])
+    @patient_ns.expect(update_patient_model)
+    @patient_ns.response(200, 'Patient updated')
+    @patient_ns.response(404, 'Patient not found')
+    @patient_ns.response(409, 'Conflict: duplicate contact')
+    def patch(self, id):
+        """Update a patient by ID"""
+        try:
+            patient = Patient.query.get(id)
+            if not patient:
+                return {'error': 'Patient not found'}, 404
+
+            data = request.get_json()
+
+            if 'name' in data:
+                patient.name = data['name']
+
+            if 'date_of_birth' in data:
+                try:
+                    patient.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+                except ValueError:
+                    return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
+
+            if 'contact_number' in data:
+                existing = Patient.query.filter_by(contact_number=data['contact_number']).first()
+                if existing and existing.id != id:
+                    return {'error': 'Patient with this contact number already exists'}, 409
+                patient.contact_number = data['contact_number']
+
+            if 'user_id' in data:
+                patient.user_id = data['user_id']
+
+            db.session.commit()
+            return jsonify(patient.to_dict())
+        except IntegrityError:
+            db.session.rollback()
+            return {'error': 'Integrity error'}, 409
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500
+
+    @role_required(['admin'])
+    @patient_ns.response(204, 'Patient deleted')
+    @patient_ns.response(404, 'Patient not found')
     def delete(self, id):
+        """Delete a patient by ID"""
+        try:
+            patient = Patient.query.get(id)
+            if not patient:
+                return {'error': 'Patient not found'}, 404
 
-        patient = Patient.query.filter_by(id=id).first()
-
-        if not patient:
-            return make_response(jsonify({'error': 'Patient does not exist'}))
-
-        db.session.delete(patient)
-        db.session.commit()
-
-        return make_response({"message": "Patient Deleted Successfully"}, 204)
-
-class PatientMedicalRecords(Resource):
-    def get(self, id):
-        patient = Patient.query.get(id)
-        if not patient:
-            return make_response({"error": "Patient not found"}, 404)
-
-        records = [record.to_dict() for record in patient.medical_records]
-        return make_response(records, 200)
-
+            db.session.delete(patient)
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500

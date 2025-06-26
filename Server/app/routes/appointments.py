@@ -1,62 +1,159 @@
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
+from flask_restx import Namespace, Resource, fields
+from app.models import Appointment, Patient, Doctor
 from app import db
-from app.models import Appointment, Doctor, Patient
+from app.routes.auth import role_required
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
+from flask_jwt_extended import current_user, get_jwt_identity
 
-appointment_bp = Blueprint("appointment_bp", __name__, url_prefix="/appointments")
+appointments_ns = Namespace('appointments', description="Operations related to Appointments")
 
-# GET all appointments
-@appointment_bp.route("/", methods=["GET"])
-def get_appointments():
-    appointments = Appointment.query.all()
-    return jsonify([appt.to_dict() for appt in appointments]), 200
+# Swagger Models
+appointment_model = appointments_ns.model('Appointment', {
+    'id': fields.Integer(readOnly=True),
+    'patient_id': fields.Integer(required=True),
+    'doctor_id': fields.Integer(required=True),
+    'appointment_date': fields.String(required=True, description="ISO format date-time"),
+    'status': fields.String(default='Scheduled', enum=['Scheduled', 'Completed', 'Canceled']),
+})
 
-# GET single appointment
-@appointment_bp.route("/<int:id>", methods=["GET"])
-def get_appointment(id):
-    appt = Appointment.query.get(id)
-    if appt:
-        return jsonify(appt.to_dict()), 200
-    return jsonify({"error": "Appointment not found"}), 404
+appointment_create_model = appointments_ns.model('AppointmentCreate', {
+    'patient_id': fields.Integer(required=True),
+    'doctor_id': fields.Integer(required=True),
+    'appointment_date': fields.String(required=True, description="ISO format (e.g., 2024-12-31T15:00:00)"),
+    'status': fields.String(default='Scheduled', enum=['Scheduled', 'Completed', 'Canceled']),
+})
 
-# POST create appointment
-@appointment_bp.route("/", methods=["POST"])
-def create_appointment():
-    data = request.get_json()
-    try:
-        new_appt = Appointment(
-            date=data["date"],
-            reason=data["reason"],
-            doctor_id=data["doctor_id"],
-            patient_id=data["patient_id"]
-        )
-        db.session.add(new_appt)
+
+@appointments_ns.route('/')
+class AppointmentList(Resource):
+    @appointments_ns.doc('get_all_appointments')
+    @appointments_ns.marshal_list_with(appointment_model)
+    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    def get(self):
+        """Get all appointments"""
+        appointments = Appointment.query.all()
+        return [appt.to_dict() for appt in appointments], 200
+
+    @appointments_ns.doc('create_appointment')
+    @appointments_ns.expect(appointment_create_model)
+    @appointments_ns.marshal_with(appointment_model, code=201)
+    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    def post(self):
+        """Create a new appointment"""
+        data = request.get_json()
+        try:
+            patient_id = data.get('patient_id')
+            doctor_id = data.get('doctor_id')
+            appointment_date_str = data.get('appointment_date')
+            status = data.get('status', 'Scheduled')
+
+            if not patient_id or not doctor_id or not appointment_date_str:
+                return {'error': 'Patient ID, Doctor ID, and Appointment Date are required'}, 400
+
+            patient = Patient.query.get(patient_id)
+            doctor = Doctor.query.get(doctor_id)
+
+            if not patient:
+                return {'error': 'Patient not found'}, 404
+            if not doctor:
+                return {'error': 'Doctor not found'}, 404
+
+            appointment_date = datetime.fromisoformat(appointment_date_str)
+            if appointment_date.replace(tzinfo=None) < datetime.utcnow():
+                return {'error': 'Appointment date cannot be in the past'}, 400
+
+            new_appt = Appointment(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                appointment_date=appointment_date,
+                status=status
+            )
+            db.session.add(new_appt)
+            db.session.commit()
+            return new_appt.to_dict(), 201
+
+        except ValueError as ve:
+            db.session.rollback()
+            return {'error': str(ve)}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {'error': 'Integrity error, e.g., invalid foreign key'}, 409
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500
+
+
+@appointments_ns.route('/<int:id>')
+@appointments_ns.param('id', 'The Appointment ID')
+class AppointmentByID(Resource):
+    @appointments_ns.doc('get_appointment_by_id')
+    @appointments_ns.marshal_with(appointment_model)
+    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    def get(self, id):
+        """Get a specific appointment by ID"""
+        appointment = Appointment.query.get(id)
+        if not appointment:
+            return {'error': 'Appointment not found'}, 404
+
+        if current_user.role == 'patient' and current_user.patient and current_user.patient.id != appointment.patient_id:
+            return {"msg": "Access denied: Patients can only view their own appointments"}, 403
+        if current_user.role == 'doctor' and current_user.doctor and current_user.doctor.id != appointment.doctor_id:
+            return {"msg": "Access denied: Doctors can only view their own appointments"}, 403
+
+        return appointment.to_dict(), 200
+
+    @appointments_ns.doc('update_appointment')
+    @appointments_ns.expect(appointment_create_model)
+    @appointments_ns.marshal_with(appointment_model)
+    @role_required(['admin', 'doctor', 'department_manager'])
+    def patch(self, id):
+        """Update an appointment by ID"""
+        appointment = Appointment.query.get(id)
+        if not appointment:
+            return {'error': 'Appointment not found'}, 404
+
+        data = request.get_json()
+        try:
+            if 'patient_id' in data:
+                patient = Patient.query.get(data['patient_id'])
+                if not patient:
+                    return {'error': 'Patient not found'}, 404
+                appointment.patient_id = data['patient_id']
+            if 'doctor_id' in data:
+                doctor = Doctor.query.get(data['doctor_id'])
+                if not doctor:
+                    return {'error': 'Doctor not found'}, 404
+                appointment.doctor_id = data['doctor_id']
+            if 'appointment_date' in data:
+                new_date = datetime.fromisoformat(data['appointment_date'])
+                if new_date.replace(tzinfo=None) < datetime.utcnow():
+                    return {'error': 'Appointment date cannot be in the past'}, 400
+                appointment.appointment_date = new_date
+            if 'status' in data:
+                appointment.status = data['status']
+
+            db.session.commit()
+            return appointment.to_dict(), 200
+
+        except ValueError as ve:
+            db.session.rollback()
+            return {'error': str(ve)}, 400
+        except IntegrityError:
+            db.session.rollback()
+            return {'error': 'Integrity error'}, 409
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 500
+
+    @appointments_ns.doc('delete_appointment')
+    @role_required(['admin', 'department_manager'])
+    def delete(self, id):
+        """Delete an appointment by ID"""
+        appointment = Appointment.query.get(id)
+        if not appointment:
+            return {'error': 'Appointment not found'}, 404
+        db.session.delete(appointment)
         db.session.commit()
-        return jsonify(new_appt.to_dict()), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-# PATCH update appointment
-@appointment_bp.route("/<int:id>", methods=["PATCH"])
-def update_appointment(id):
-    appt = Appointment.query.get(id)
-    if not appt:
-        return jsonify({"error": "Appointment not found"}), 404
-
-    data = request.get_json()
-    for field in ['date', 'reason', 'doctor_id', 'patient_id']:
-        if field in data:
-            setattr(appt, field, data[field])
-
-    db.session.commit()
-    return jsonify(appt.to_dict()), 200
-
-# DELETE appointment
-@appointment_bp.route("/<int:id>", methods=["DELETE"])
-def delete_appointment(id):
-    appt = Appointment.query.get(id)
-    if not appt:
-        return jsonify({"error": "Appointment not found"}), 404
-
-    db.session.delete(appt)
-    db.session.commit()
-    return jsonify({"message": "Appointment deleted"}), 200
+        return '', 204
