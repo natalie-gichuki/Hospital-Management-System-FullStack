@@ -1,10 +1,54 @@
-# models.py
+# app/models.py (updated version with User model and relationships)
 from app import db
 from datetime import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 from sqlalchemy.exc import IntegrityError
+from werkzeug.security import generate_password_hash, check_password_hash
 
+
+class User(db.Model, SerializerMixin):
+    __tablename__ = 'users'
+    serialize_rules = ('-password_hash',) # Never serialize password hash
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(50), nullable=False, default='patient') # 'admin', 'doctor', 'patient', 'department_manager'
+
+    # Relationships to existing models (optional, but good for linking)
+    doctor = db.relationship('Doctor', back_populates='user', uselist=False)
+    patient = db.relationship('Patient', back_populates='user', uselist=False)
+    # department_manager_of = db.relationship('Department', back_populates='manager_user') # If a user manages a specific dept
+
+    @property
+    def password(self):
+        raise AttributeError('Password is not a readable attribute.')
+
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    @validates('username')
+    def validate_username(self, key, username):
+        if not username or len(username) < 4:
+            raise ValueError("Username must be at least 4 characters long.")
+        return username
+
+    @validates('role')
+    def validate_role(self, key, role):
+        valid_roles = ['admin', 'doctor', 'patient', 'department_manager']
+        if role not in valid_roles:
+            raise ValueError(f"Role must be one of {valid_roles}")
+        return role
+
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}', role='{self.role}')>"
+
+# Modify Doctor model to link to User
 class Doctor(db.Model, SerializerMixin):
     __tablename__ = 'doctors'
     serialize_rules = (
@@ -12,14 +56,17 @@ class Doctor(db.Model, SerializerMixin):
         '-department.head_doctor',
         '-departments_headed',
         '-appointments.doctor',
-        '-medical_records.doctor'
+        '-medical_records.doctor',
+        '-user.doctor' # Exclude back-reference
     )
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=True) # New: Link to User
     name = db.Column(db.String(100), nullable=False)
     specialization = db.Column(db.String(100), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
 
+    user = db.relationship('User', back_populates='doctor', uselist=False) # New: Relationship to User
     department = db.relationship('Department', back_populates='doctors_in_department', foreign_keys=[department_id])
     departments_headed = db.relationship('Department', back_populates='head_doctor', foreign_keys='Department.head_doctor_id')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade="all, delete-orphan")
@@ -40,15 +87,18 @@ class Doctor(db.Model, SerializerMixin):
     def __repr__(self):
         return f"<Doctor(id={self.id}, name='{self.name}', specialization='{self.specialization}')>"
 
+# Modify Patient model to link to User
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
-    serialize_rules = ('-appointments.patient', '-medical_records.patient')
+    serialize_rules = ('-appointments.patient', '-medical_records.patient', '-user.patient') # Exclude back-reference
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=True) # New: Link to User
     name = db.Column(db.String(100), nullable=False)
     date_of_birth = db.Column(db.Date, nullable=False)
     contact_number = db.Column(db.String(20), nullable=False, unique=True)
 
+    user = db.relationship('User', back_populates='patient', uselist=False) # New: Relationship to User
     appointments = db.relationship('Appointment', back_populates='patient', cascade="all, delete-orphan")
     medical_records = db.relationship('MedicalRecord', back_populates='patient', cascade="all, delete-orphan")
 
@@ -67,6 +117,7 @@ class Patient(db.Model, SerializerMixin):
     def __repr__(self):
         return f"<Patient(id={self.id}, name='{self.name}')>"
 
+# Department model (no changes needed for linking to User directly for now, as 'department_manager' is a User role)
 class Department(db.Model, SerializerMixin):
     __tablename__ = 'departments'
     serialize_rules = ('-doctors_in_department.department', '-head_doctor.departments_headed')
