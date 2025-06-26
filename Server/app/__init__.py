@@ -8,7 +8,7 @@ from flask_restx import Api
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
-api = Api(  # ✅ instantiate Flask-RESTX Api here
+api = Api(  
     title="Hospital Management System API",
     version="1.0",
     description="API documentation for the Hospital Management System.",

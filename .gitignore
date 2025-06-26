@@ -10,3 +10,4 @@ Server/instance/hospital.db
 Server/hospital.db
 Server/instance/hospital.db
 Server/migrations/versions/cbc05349d8ea_initial_migration.py
+Server/instance/hospital.db
