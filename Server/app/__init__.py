@@ -2,6 +2,8 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_restful import Api
+
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -13,6 +15,7 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app,db)
+    api = Api(app)
 
     from app.routes.departments import DepartmentList, DepartmentByID
 
@@ -24,5 +27,6 @@ def create_app():
         from . import models
         from .routes import appointments, departments, doctors, patients, medical_records
         db.create_all()
+          #
 
     return app

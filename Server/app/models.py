@@ -11,7 +11,7 @@ class Doctor(db.Model, SerializerMixin):
     email = db.Column(db.String, unique=True, nullable=False)
     specialization = db.Column(db.String, nullable=False)
 
-    medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
+    #medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
     headed_departments = db.relationship('Department', back_populates='head_doctor', cascade='all, delete-orphan')
 
     serialize_rules = ('-medical_records.doctor', '-headed_departments.head_doctor',)
