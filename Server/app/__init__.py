@@ -3,6 +3,8 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_restful import Api, Resource
+from config import Config
+
 
 
 db = SQLAlchemy()
@@ -11,7 +13,7 @@ migrate = Migrate()
 def create_app():
     app = Flask(__name__)
     CORS(app)
-    app.config.from_object('app.config.Config')
+    app.config.from_object(Config)
 
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -44,7 +46,7 @@ def create_app():
         app.register_blueprint(patients.patient_bp)
         app.register_blueprint(appointments.appointment_bp)
         #app.register_blueprint(departments.department_bp)
-        #app.register_blueprint(medical_records.record_bp)
+        app.register_blueprint(medical_records.record_bp)
 
         db.create_all()
 

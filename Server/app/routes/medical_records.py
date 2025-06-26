@@ -3,6 +3,11 @@ from flask_restful import Resource
 from app.models import Medical_Record, Patient, Doctor
 from app import db
 
+from flask import Blueprint
+
+record_bp = Blueprint('record_bp', __name__)
+
+
 
 class MedicalRecords(Resource):
     def get(self):

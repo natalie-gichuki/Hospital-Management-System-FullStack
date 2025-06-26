@@ -1,5 +1,5 @@
 
-#from .models import Doctor, Patient, Department, Appointment, Medical_Record
+from .models import Doctor, Patient,  Appointment, Medical_Record #Department,
 from app import db, create_app
 
 from faker import Faker
@@ -24,16 +24,16 @@ def seed_data():
                 # Seed Doctors (manual)
         print("👨‍⚕️ Seeding Doctors...")
         doctors = [
-            Doctor(name="Dr. Alice Kamau", specialization="Cardiologist", email="alice.kamau@hospital.com"),
-            Doctor(name="Dr. Brian Otieno", specialization="Neurologist", email="brian.otieno@hospital.com"),
-            Doctor(name="Dr. Cynthia Mwangi", specialization="Pediatrician", email="cynthia.mwangi@hospital.com"),
-            Doctor(name="Dr. Daniel Kiprotich", specialization="Dermatologist", email="daniel.kiprotich@hospital.com"),
-            Doctor(name="Dr. Emily Wambui", specialization="General Surgeon", email="emily.wambui@hospital.com"),
-            Doctor(name="Dr. Felix Njoroge", specialization="Radiologist", email="felix.njoroge@hospital.com"),
-            Doctor(name="Dr. Grace Achieng", specialization="Gynecologist", email="grace.achieng@hospital.com"),
-            Doctor(name="Dr. Henry Kimani", specialization="Oncologist", email="henry.kimani@hospital.com"),
-            Doctor(name="Dr. Irene Mutua", specialization="ENT Specialist", email="irene.mutua@hospital.com"),
-            Doctor(name="Dr. James Mwenda", specialization="Orthopedic Surgeon", email="james.mwenda@hospital.com"),
+            Doctor(name="Dr. Alice Kamau", specialization="Cardiologist", contact="alice.kamau@hospital.com"),
+            Doctor(name="Dr. Brian Otieno", specialization="Neurologist", contact="brian.otieno@hospital.com"),
+            Doctor(name="Dr. Cynthia Mwangi", specialization="Pediatrician", contact="cynthia.mwangi@hospital.com"),
+            Doctor(name="Dr. Daniel Kiprotich", specialization="Dermatologist", contact="daniel.kiprotich@hospital.com"),
+            Doctor(name="Dr. Emily Wambui", specialization="General Surgeon", contact="emily.wambui@hospital.com"),
+            Doctor(name="Dr. Felix Njoroge", specialization="Radiologist", contact="felix.njoroge@hospital.com"),
+            Doctor(name="Dr. Grace Achieng", specialization="Gynecologist", contact="grace.achieng@hospital.com"),
+            Doctor(name="Dr. Henry Kimani", specialization="Oncologist", contact="henry.kimani@hospital.com"),
+            Doctor(name="Dr. Irene Mutua", specialization="ENT Specialist", contact="irene.mutua@hospital.com"),
+            Doctor(name="Dr. James Mwenda", specialization="Orthopedic Surgeon", contact="james.mwenda@hospital.com"),
         ]
 
         for doctor in doctors:

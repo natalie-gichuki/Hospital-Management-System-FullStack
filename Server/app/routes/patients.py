@@ -4,6 +4,11 @@ from flask_restful import Resource
 from app.models import Patient, Outpatient, Inpatient
 from app import db
 
+from flask import Blueprint, jsonify
+
+patient_bp = Blueprint('patient_bp', __name__)
+
+
 
 class HomeResource(Resource):
     

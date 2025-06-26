@@ -20,8 +20,15 @@ class Patient(db.Model, SerializerMixin):
     }
 
     medical_records = db.relationship('Medical_Record', back_populates='patient', cascade='all, delete-orphan')
+    appointments = db.relationship("Appointment", back_populates="patient", cascade="all, delete-orphan")
 
-    serialize_rules = ('-medical_records.patient',)
+    serialize_rules = (
+    '-appointments.patient',
+    '-appointments.doctor.appointments',
+    '-medical_records.patient',
+    '-medical_records.doctor.medical_records'
+   )
+
 
 
 
@@ -52,7 +59,13 @@ class Medical_Record(db.Model, SerializerMixin):
     __tablename__ = 'medical_records'
 
     
-    serialize_rules = ('-patient.medical_records', '-doctor.medical_records')
+    serialize_rules = (
+    '-patient.medical_records',
+    '-doctor.medical_records',
+    '-patient.appointments',
+    '-doctor.appointments'
+)
+
 
     id = db.Column(db.Integer, primary_key = True)
     diagnosis = db.Column(db.String, nullable = False)
@@ -79,9 +92,14 @@ class Doctor(db.Model, SerializerMixin):
     # Relationships
     #department = db.relationship('Department', back_populates='doctors')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
-    #medical_records = db.relationship('Medical_record', back_populates='doctor', cascade='all, delete-orphan')
+    medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
 
-    serialize_rules = ('-appointments.doctor',) #'-department.doctors','-medical_records.doctor')
+    serialize_rules = (
+    '-appointments.doctor',
+    '-appointments.patient.appointments',
+    '-medical_records.doctor',
+    '-medical_records.patient.medical_records'
+)
 
     def __repr__(self):
         return f"<Doctor {self.name}>"
@@ -100,7 +118,13 @@ class Appointment(db.Model, SerializerMixin):
     patient = db.relationship("Patient", back_populates="appointments")
     doctor = db.relationship("Doctor", back_populates="appointments")
 
-    serialize_rules = ('-patient.appointments', '-doctor.appointments')
+    serialize_rules = (
+    '-patient.appointments',
+    '-doctor.appointments',
+    '-patient.medical_records',
+    '-doctor.medical_records'
+)
+
 
     def __repr__(self):
         return f"<Appointment {self.date} with Doctor {self.doctor_id}>"
