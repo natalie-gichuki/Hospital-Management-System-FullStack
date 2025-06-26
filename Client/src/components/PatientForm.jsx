@@ -1,28 +1,20 @@
 import { useEffect, useState } from 'react';
-import {
-  createPatient,
-  getAllPatients,
-  deletePatient,
-} from '../services/patientService';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { createPatient, getAllPatients, deletePatient} from '../services/patientService';
+
 
 const PatientForm = () => {
   const [patients, setPatients] = useState([]);
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    type: '',
-    admission_date: '',
-    ward_number: '',
-    last_visit_date: '',
-  });
-
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
 
   useEffect(() => {
     fetchPatients();
   }, []);
+
+
 
   const fetchPatients = async () => {
     try {
@@ -33,67 +25,57 @@ const PatientForm = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
 
-    const { name, age, gender, type } = formData;
+  const formik = useFormik({
+    initialValues: {
+      name: '',
+      age: '',
+      gender: '',
+      type: '',
+      admission_date: '',
+      ward_number: '',
+      last_visit_date: '',
+    },
+    validationSchema: Yup.object({
+      name: Yup.string().required('Name is required'),
+      age: Yup.number().required('Age is required'),
+      gender: Yup.string().required('Gender is required'),
+      type: Yup.string().required('Type is required'),
+      admission_date: Yup.string().when('type', {
+        is: 'inpatient',
+        then: Yup.string().required('Admission date is required'),
+      }),
+      ward_number: Yup.number().when('type', {
+        is: 'inpatient',
+        then: Yup.number().required('Ward number is required'),
+      }),
+      last_visit_date: Yup.string().when('type', {
+        is: 'outpatient',
+        then: Yup.string().required('Last visit date is required'),
+      }),
+    }),
 
-    if (!name || !age || !gender || !type) {
-      setError('Name, age, gender, and type are required');
-      return;
-    }
+    onSubmit: async (values, { resetForm }) => {
+      setError('');
+      setSuccess('');
 
-    // Validate extra fields
-    if (type === 'inpatient' && (!formData.admission_date || !formData.ward_number)) {
-      setError('Admission date and ward number are required for inpatients');
-      return;
-    }
+      try {
+        const newPatient = await createPatient({
+          ...values,
+          age: parseInt(values.age),
+          ward_number: values.ward_number ? parseInt(values.ward_number) : undefined,
+        });
+        setSuccess(`Patient "${newPatient.name}" added successfully!`);
+        resetForm();
+        fetchPatients();
+      } catch (err) {
+        console.error('Error creating patient:', err);
+        setError('Failed to create patient');
+      }
+    },
+  });
 
-    if (type === 'outpatient' && !formData.last_visit_date) {
-      setError('Last visit date is required for outpatients');
-      return;
-    }
-
-    // Build payload
-    const payload = {
-      name,
-      age: parseInt(age),
-      gender,
-      type,
-    };
-
-    if (type === 'inpatient') {
-      payload.admission_date = formData.admission_date;
-      payload.ward_number = parseInt(formData.ward_number);
-    } else if (type === 'outpatient') {
-      payload.last_visit_date = formData.last_visit_date;
-    }
-
-    try {
-      const newPatient = await createPatient(payload);
-      setSuccess(`Patient "${newPatient.name}" added`);
-      setFormData({
-        name: '',
-        age: '',
-        gender: '',
-        type: '',
-        admission_date: '',
-        ward_number: '',
-        last_visit_date: '',
-      });
-      fetchPatients();
-    } catch (err) {
-      console.error('Error creating patient:', err);
-      setError('Failed to create patient');
-    }
-  };
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this patient?')) return;
@@ -105,6 +87,7 @@ const PatientForm = () => {
     }
   };
 
+  
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white shadow rounded-xl">
       <h2 className="text-2xl font-bold mb-4">Register Patient</h2>
@@ -112,27 +95,34 @@ const PatientForm = () => {
       {error && <p className="text-red-600">{error}</p>}
       {success && <p className="text-green-600">{success}</p>}
 
-      <form onSubmit={handleSubmit} className="space-y-3 mb-6">
+      <form onSubmit={formik.handleSubmit} className="space-y-3 mb-6">
         <input
           type="text"
           name="name"
           placeholder="Name"
-          value={formData.name}
-          onChange={handleChange}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          value={formik.values.name}
           className="w-full border px-3 py-2 rounded"
         />
+        {formik.touched.name && formik.errors.name && <p className="text-red-500 text-sm">{formik.errors.name}</p>}
+
         <input
           type="number"
           name="age"
           placeholder="Age"
-          value={formData.age}
-          onChange={handleChange}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          value={formik.values.age}
           className="w-full border px-3 py-2 rounded"
         />
+        {formik.touched.age && formik.errors.age && <p className="text-red-500 text-sm">{formik.errors.age}</p>}
+
         <select
           name="gender"
-          value={formData.gender}
-          onChange={handleChange}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          value={formik.values.gender}
           className="w-full border px-3 py-2 rounded"
         >
           <option value="">Select Gender</option>
@@ -140,46 +130,58 @@ const PatientForm = () => {
           <option value="Male">Male</option>
           <option value="Other">Other</option>
         </select>
+        {formik.touched.gender && formik.errors.gender && <p className="text-red-500 text-sm">{formik.errors.gender}</p>}
 
         <select
           name="type"
-          value={formData.type}
-          onChange={handleChange}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          value={formik.values.type}
           className="w-full border px-3 py-2 rounded"
         >
           <option value="">Select Type</option>
           <option value="inpatient">Inpatient</option>
           <option value="outpatient">Outpatient</option>
         </select>
+        {formik.touched.type && formik.errors.type && <p className="text-red-500 text-sm">{formik.errors.type}</p>}
 
-        {formData.type === 'inpatient' && (
+        {formik.values.type === 'inpatient' && (
           <>
             <input
               type="date"
               name="admission_date"
-              value={formData.admission_date}
-              onChange={handleChange}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.admission_date}
               className="w-full border px-3 py-2 rounded"
             />
+            {formik.touched.admission_date && formik.errors.admission_date && <p className="text-red-500 text-sm">{formik.errors.admission_date}</p>}
+
             <input
               type="number"
               name="ward_number"
               placeholder="Ward Number"
-              value={formData.ward_number}
-              onChange={handleChange}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.ward_number}
               className="w-full border px-3 py-2 rounded"
             />
+            {formik.touched.ward_number && formik.errors.ward_number && <p className="text-red-500 text-sm">{formik.errors.ward_number}</p>}
           </>
         )}
 
-        {formData.type === 'outpatient' && (
-          <input
-            type="date"
-            name="last_visit_date"
-            value={formData.last_visit_date}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
+        {formik.values.type === 'outpatient' && (
+          <>
+            <input
+              type="date"
+              name="last_visit_date"
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              value={formik.values.last_visit_date}
+              className="w-full border px-3 py-2 rounded"
+            />
+            {formik.touched.last_visit_date && formik.errors.last_visit_date && <p className="text-red-500 text-sm">{formik.errors.last_visit_date}</p>}
+          </>
         )}
 
         <button
@@ -229,3 +231,4 @@ const PatientForm = () => {
 };
 
 export default PatientForm;
+
