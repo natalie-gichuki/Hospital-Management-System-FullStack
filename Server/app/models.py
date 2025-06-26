@@ -9,6 +9,7 @@ class Doctor(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     specialization = db.Column(db.String(100), nullable=False)
+    contact = db.Column(db.String)
     #department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
 
     # Relationships
