@@ -46,14 +46,11 @@ const services = [
 const Dashboard = () => {
   return (
     <div className="ml-64 p-6 bg-[#f5faff] min-h-screen text-[#001f54] font-sans">
-      {/* Welcome Title */}
-      <h2 className="text-3xl font-bold text-center mb-8">🏥 WELCOME TO OUR HOSPITAL</h2>
 
-      {/* Hero Section */}
       <header
         className="bg-cover bg-center h-[65vh] shadow-xl flex items-center justify-center text-center px-4 mb-12"
         style={{
-          backgroundImage: `url('https://guardianhospitalmeru.com/wp-content/uploads/2023/06/WhatsApp-Image-2023-09-11-at-11.10.43-1.jpeg')`,
+          backgroundImage: `url('https://cdn.pixabay.com/photo/2016/04/19/13/22/hospital-1338585_1280.jpg')`,
         }}
       >
         <div className="bg-black bg-opacity-50 p-8 rounded-xl max-w-3xl">
@@ -66,7 +63,6 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Services Section */}
       <section className="mb-12 text-center">
         <h2 className="text-4xl font-bold text-[#001f54] mb-8">Our Services</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
@@ -82,19 +78,39 @@ const Dashboard = () => {
         </div>
       </section>
 
-      {/* About Section */}
-      <section className="bg-white shadow-md rounded-2xl p-8 mb-10 text-center">
-        <h2 className="text-4xl font-bold text-[#001f54] mb-6">About Us</h2>
-        <p className="text-gray-700 leading-relaxed text-lg max-w-4xl mx-auto">
-          St. Catherine Memorial Hospital has served the community with excellence in healthcare for over 25 years.
-          We offer a wide spectrum of services including outpatient, inpatient, surgical, maternity, pediatric, and emergency care.
-          <br /><br />
-          Our mission is to provide compassionate, affordable, and high-quality medical care to all individuals, regardless of their background.
-          We are equipped with modern technology, a team of highly trained professionals, and a passion for service that puts the patient at the center of everything we do.
-          <br /><br />
-          From first-time visitors to long-term patients, every person is treated with dignity, empathy, and the utmost professionalism. We continually strive to improve outcomes and empower healthier communities through trust, care, and innovation.
-        </p>
+      <section className="bg-white shadow-md rounded-2xl p-8 mb-10">
+        <h2 className="text-4xl font-bold text-[#001f54] mb-6 text-center">About Us</h2>
+
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          {/* Image on the Left */}
+          <div className="md:w-1/2">
+            <img
+              src="https://media.istockphoto.com/id/1312706413/photo/modern-hospital-building.jpg?s=612x612&amp;w=0&amp;k=20&amp;c=oUILskmtaPiA711DP53DFhOUvE7pfdNeEK9CfyxlGio="
+              alt="About Us"
+              className="rounded-xl shadow-lg w-full h-[500px] object-cover"
+            />
+          </div>
+
+          {/* Text on the Right */}
+          <div className="md:w-1/2 text-lg text-gray-700 leading-relaxed">
+            <p>
+              St. Catherine Memorial Hospital has served the community with excellence in healthcare for over 25 years.
+              We offer a wide spectrum of services including outpatient, inpatient, surgical, maternity, pediatric, and emergency care.
+            </p>
+            <br />
+            <p>
+              Our mission is to provide compassionate, affordable, and high-quality medical care to all individuals, regardless of their background.
+              We are equipped with modern technology, a team of highly trained professionals, and a passion for service that puts the patient at the center of everything we do.
+            </p>
+            <br />
+            <p>
+              From first-time visitors to long-term patients, every person is treated with dignity, empathy, and the utmost professionalism.
+              We continually strive to improve outcomes and empower healthier communities through trust, care, and innovation.
+            </p>
+          </div>
+        </div>
       </section>
+
 
       {/* Contact & Emergency Section */}
       <section className="bg-white shadow-md rounded-2xl p-8 mb-10 text-center">
@@ -146,3 +162,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
