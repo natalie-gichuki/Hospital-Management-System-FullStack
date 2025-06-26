@@ -1,126 +1,68 @@
 from flask import request, jsonify
-from flask_restful import Resource
+from flask_restx import Namespace, Resource, fields
 from app.models import Patient
 from app import db
-from app.routes.auth import role_required # Import our custom role decorator
+from app.routes.auth import role_required
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
+from flask_jwt_extended import current_user
 
+patient_ns = Namespace('patients', description="Patient operations")
+
+# === Swagger Models ===
+patient_model = patient_ns.model('Patient', {
+    'name': fields.String(required=True, example="John Doe"),
+    'date_of_birth': fields.String(required=True, example="1990-01-01"),
+    'contact_number': fields.String(required=True, example="+254712345678"),
+    'user_id': fields.Integer(required=False, example=5),
+})
+
+update_patient_model = patient_ns.model('UpdatePatient', {
+    'name': fields.String(example="Jane Doe"),
+    'date_of_birth': fields.String(example="1992-02-02"),
+    'contact_number': fields.String(example="+254700000000"),
+    'user_id': fields.Integer(example=7),
+})
+
+
+@patient_ns.route('/')
 class PatientList(Resource):
-    """Resource for listing and creating patients."""
 
     @role_required(['admin', 'doctor', 'department_manager'])
+    @patient_ns.response(200, 'List of patients')
     def get(self):
-        """
-        Get all Patients
-        Retrieves a list of all Patients.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Patients
-        responses:
-          200:
-            description: A list of patients.
-            schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                  name:
-                    type: string
-                  date_of_birth:
-                    type: string
-                    format: date
-                  contact_number:
-                    type: string
-                  user_id:
-                    type: integer
-          401:
-            description: Unauthorized (missing or invalid token).
-          403:
-            description: Forbidden (insufficient role).
-          500:
-            description: Internal server error.
-        """
+        """Get all patients"""
         try:
             patients = Patient.query.all()
-            patient_list = [patient.to_dict() for patient in patients]
-            return jsonify(patient_list), 200
+            return jsonify([p.to_dict() for p in patients])
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500
 
     @role_required(['admin', 'department_manager', 'doctor'])
+    @patient_ns.expect(patient_model)
+    @patient_ns.response(201, 'Patient created')
+    @patient_ns.response(400, 'Invalid input')
+    @patient_ns.response(409, 'Duplicate contact number')
     def post(self):
-        """
-        Create a new Patient
-        Registers a new patient in the system.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Patients
-        parameters:
-          - in: body
-            name: patient
-            description: Patient object to be created.
-            required: true
-            schema:
-                type: object
-                properties:
-                    name:
-                        type: string
-                        description: Name of the patient.
-                    date_of_birth:
-                        type: string
-                        format: date
-                        description: Date of birth of the patient (YYYY-MM-DD).
-                    contact_number:
-                        type: string
-                        description: Contact number of the patient (must be unique).
-                    user_id:
-                        type: integer
-                        description: Optional user ID to link the patient to a specific user.
-        responses:
-          201:
-            description: Patient has been created successfully.
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                name:
-                  type: string
-                contact_number:
-                  type: string
-          400:
-            description: Bad request (missing required fields, invalid date format).
-          409:
-            description: Conflict (patient with this contact number already exists).
-          500:
-            description: Internal server error.
-        """
+        """Create a new patient"""
         try:
             data = request.get_json()
-
             name = data.get('name')
-            date_of_birth_str = data.get('date_of_birth')
+            dob_str = data.get('date_of_birth')
             contact_number = data.get('contact_number')
-            user_id = data.get('user_id') # Optional: link to a User
+            user_id = data.get('user_id')
 
-            if not name or not date_of_birth_str or not contact_number:
-                return jsonify({'error': 'Name, date_of_birth, and contact_number are required'}), 400
+            if not name or not dob_str or not contact_number:
+                return {'error': 'Name, date_of_birth, and contact_number are required'}, 400
 
             try:
-                date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+                date_of_birth = datetime.strptime(dob_str, '%Y-%m-%d').date()
             except ValueError:
-                return jsonify({'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}), 400
+                return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
 
             if Patient.query.filter_by(contact_number=contact_number).first():
-                return jsonify({'error': 'Patient with this contact number already exists'}), 409
+                return {'error': 'Patient with this contact number already exists'}, 409
 
             new_patient = Patient(
                 name=name,
@@ -128,199 +70,91 @@ class PatientList(Resource):
                 contact_number=contact_number,
                 user_id=user_id
             )
-
             db.session.add(new_patient)
             db.session.commit()
-
             return jsonify(new_patient.to_dict()), 201
-        except ValueError as ve:
-            db.session.rollback()
-            return jsonify({'error': str(ve)}), 400
         except IntegrityError:
             db.session.rollback()
-            return jsonify({'error': 'Integrity error, e.g., duplicate contact number or user_id, or invalid foreign key'}), 409
+            return {'error': 'Integrity error, e.g., duplicate contact number or user_id'}, 409
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500
 
+
+@patient_ns.route('/<int:id>')
 class PatientByID(Resource):
-    """Resource for interacting with a specific patient by ID."""
 
     @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    @patient_ns.response(200, 'Patient details')
+    @patient_ns.response(404, 'Patient not found')
     def get(self, id):
-        """
-        Get a Patient by ID
-        Retrieves details of a specific patient by their ID.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Patients
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the patient to retrieve.
-        responses:
-          200:
-            description: Patient details.
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                name:
-                  type: string
-                date_of_birth:
-                  type: string
-                  format: date
-                contact_number:
-                  type: string
-                user_id:
-                  type: integer
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden (e.g., patient trying to view another patient's record).
-          404:
-            description: Patient not found.
-          500:
-            description: Internal server error.
-        """
+        """Get a patient by ID"""
         try:
             patient = Patient.query.get(id)
             if not patient:
-                return jsonify({'error': 'Patient not found'}), 404
+                return {'error': 'Patient not found'}, 404
 
-            # Ensure patients can only view their own record unless they are admin/doctor/dept_manager
-            from flask_jwt_extended import get_jwt_identity, current_user
             if current_user.role == 'patient' and current_user.patient and current_user.patient.id != patient.id:
-                return jsonify({"msg": "Access denied: Patients can only view their own records"}), 403
+                return {'msg': 'Access denied: Patients can only view their own records'}, 403
 
-            return jsonify(patient.to_dict()), 200
+            return jsonify(patient.to_dict())
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500
 
     @role_required(['admin', 'department_manager', 'doctor'])
+    @patient_ns.expect(update_patient_model)
+    @patient_ns.response(200, 'Patient updated')
+    @patient_ns.response(404, 'Patient not found')
+    @patient_ns.response(409, 'Conflict: duplicate contact')
     def patch(self, id):
-        """
-        Update a Patient by ID
-        Updates existing fields of a specific patient.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Patients
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the patient to update.
-          - in: body
-            name: body
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: New name for the patient.
-                date_of_birth:
-                  type: string
-                  format: date
-                  description: New date of birth for the patient (YYYY-MM-DD).
-                contact_number:
-                  type: string
-                  description: New contact number for the patient (must be unique).
-                user_id:
-                  type: integer
-                  description: New user ID to link the patient to.
-        responses:
-          200:
-            description: Patient updated successfully.
-          400:
-            description: Bad request (e.g., validation error, invalid date format).
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden.
-          404:
-            description: Patient not found.
-          409:
-            description: Conflict (e.g., duplicate contact number).
-          500:
-            description: Internal server error.
-        """
+        """Update a patient by ID"""
         try:
             patient = Patient.query.get(id)
             if not patient:
-                return jsonify({'error': 'Patient not found'}), 404
+                return {'error': 'Patient not found'}, 404
 
             data = request.get_json()
 
             if 'name' in data:
                 patient.name = data['name']
+
             if 'date_of_birth' in data:
                 try:
                     patient.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
                 except ValueError:
-                    return jsonify({'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}), 400
+                    return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
+
             if 'contact_number' in data:
-                if Patient.query.filter_by(contact_number=data['contact_number']).first() and data['contact_number'] != patient.contact_number:
-                    return jsonify({'error': 'Patient with this contact number already exists'}), 409
+                existing = Patient.query.filter_by(contact_number=data['contact_number']).first()
+                if existing and existing.id != id:
+                    return {'error': 'Patient with this contact number already exists'}, 409
                 patient.contact_number = data['contact_number']
+
             if 'user_id' in data:
-                patient.user_id = data['user_id'] # Can update user link
+                patient.user_id = data['user_id']
 
             db.session.commit()
-            return jsonify(patient.to_dict()), 200
-        except ValueError as ve:
-            db.session.rollback()
-            return jsonify({'error': str(ve)}), 400
+            return jsonify(patient.to_dict())
         except IntegrityError:
             db.session.rollback()
-            return jsonify({'error': 'Integrity error, e.g., duplicate contact number or user_id, or invalid foreign key'}), 409
+            return {'error': 'Integrity error'}, 409
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500
 
     @role_required(['admin'])
+    @patient_ns.response(204, 'Patient deleted')
+    @patient_ns.response(404, 'Patient not found')
     def delete(self, id):
-        """
-        Delete a Patient by ID
-        Deletes a specific patient by their ID.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Patients
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the patient to delete.
-        responses:
-          204:
-            description: Patient deleted successfully (No Content).
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden.
-          404:
-            description: Patient not found.
-          500:
-            description: Internal server error.
-        """
+        """Delete a patient by ID"""
         try:
             patient = Patient.query.get(id)
             if not patient:
-                return jsonify({'error': 'Patient not found'}), 404
+                return {'error': 'Patient not found'}, 404
 
             db.session.delete(patient)
             db.session.commit()
             return '', 204
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': str(e)}), 500
+            return {'error': str(e)}, 500

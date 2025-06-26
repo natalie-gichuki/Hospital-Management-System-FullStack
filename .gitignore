@@ -8,3 +8,5 @@ Server/migrations/script.py.mako
 Server/migrations/alembic.ini
 Server/instance/hospital.db
 Server/hospital.db
+Server/instance/hospital.db
+Server/migrations/versions/cbc05349d8ea_initial_migration.py

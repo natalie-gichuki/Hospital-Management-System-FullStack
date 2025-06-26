@@ -1,160 +1,69 @@
-# app/routes/doctors.py (Updated with corrected POST docstring)
 from flask import request, jsonify
-from flask_restful import Resource
+from flask_restx import Namespace, Resource, fields
 from app.models import Doctor, Department
 from app import db
-from app.routes.auth import role_required # Import our custom role decorator
+from app.routes.auth import role_required
 from sqlalchemy.exc import IntegrityError
 
-class DoctorList(Resource):
-    """Resource for listing and creating doctors."""
+doctor_ns = Namespace('doctors', description="Doctor resource operations")
 
-    @role_required(['admin', 'department_manager', 'doctor']) # Admins, Dept Managers, Doctors can view
+# === Swagger Models ===
+doctor_model = doctor_ns.model('Doctor', {
+    'name': fields.String(required=True, example='Dr. Alice'),
+    'specialization': fields.String(required=True, example='Cardiology'),
+    'department_id': fields.Integer(required=True, example=1),
+    'user_id': fields.Integer(required=False, example=3)
+})
+
+update_doctor_model = doctor_ns.model('UpdateDoctor', {
+    'name': fields.String(example='Dr. Bob'),
+    'specialization': fields.String(example='Dermatology'),
+    'department_id': fields.Integer(example=2),
+    'user_id': fields.Integer(example=4)
+})
+
+
+@doctor_ns.route('/')
+class DoctorList(Resource):
+
+    @role_required(['admin', 'department_manager', 'doctor'])
+    @doctor_ns.response(200, 'Success')
     def get(self):
-        """
-        Get all Doctors
-        Retrieves a list of all Doctors.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Doctors
-        responses:
-          200:
-            description: A list of doctors.
-            schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                  name:
-                    type: string
-                  specialization:
-                    type: string
-                  department_id:
-                    type: integer
-                  department_name:
-                    type: string
-                  user_id:
-                    type: integer
-                  user_username:
-                    type: string
-                  num_doctors_in_dept:
-                    type: integer
-          401:
-            description: Unauthorized (missing or invalid token).
-          403:
-            description: Forbidden (insufficient role).
-          500:
-            description: Internal server error.
-        """
+        """Get all doctors"""
         try:
             doctors = Doctor.query.all()
             doctor_list = []
             for doc in doctors:
                 doc_dict = doc.to_dict()
-                # Add department name for better context in API response
                 if doc.department:
                     doc_dict['department_name'] = doc.department.name
                 doctor_list.append(doc_dict)
-            return jsonify(doctor_list), 200
+            return jsonify(doctor_list)
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin', 'department_manager']) # Only Admins and Dept Managers can create
+    @role_required(['admin', 'department_manager'])
+    @doctor_ns.expect(doctor_model)
+    @doctor_ns.response(201, 'Doctor created successfully')
+    @doctor_ns.response(400, 'Missing or invalid data')
+    @doctor_ns.response(404, 'Department not found')
+    @doctor_ns.response(409, 'Integrity error')
     def post(self):
-        """
-        Create a new Doctor
-        Registers a new doctor in the system.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Doctors
-        parameters:
-          - in: body
-            name: doctor
-            description: Doctor object to be created.
-            required: true
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: Name of the doctor.
-                specialization: # Corrected indentation
-                  type: string
-                  description: Specialization of the doctor.
-                department_id: # Corrected indentation
-                  type: integer
-                  description: ID of the department the doctor belongs to.
-                user_id:
-                  type: integer
-                  description: Optional user ID to link the doctor to a specific user.
-        responses:
-          201:
-            description: Doctor has been created successfully.
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                name:
-                  type: string
-                specialization:
-                  type: string
-                department_id:
-                  type: integer
-                department_name:
-                  type: string
-                user_id:
-                  type: integer
-          400:
-            description: Bad request (missing required fields).
-            schema:
-                type: object
-                properties:
-                    error:
-                        type: string
-          404:
-            description: Department was not found (invalid department_id is an example cause).
-            schema:
-                type: object
-                properties:
-                    error:
-                        type: string
-          403:
-            description: Forbidden (insufficient role).
-            schema:
-                type: object
-                properties:
-                    error:
-                        type: string
-          500:
-            description: Internal server error.
-            schema:
-                type: object
-                properties:
-                    error:
-                        type: string
-            """
+        """Create a new doctor"""
         try:
             data = request.get_json()
-
             name = data.get('name')
             specialization = data.get('specialization')
             department_id = data.get('department_id')
-            user_id = data.get('user_id') # Optional: link to a User
+            user_id = data.get('user_id')
 
             if not name or not specialization or not department_id:
-                return jsonify({'error': 'Name, specialization, and department_id are required'}), 400
+                return {'error': 'Name, specialization, and department_id are required'}, 400
 
             department = Department.query.get(department_id)
             if not department:
-                return jsonify({'error': 'Department not found'}), 404
+                return {'error': 'Department not found'}, 404
 
             new_doctor = Doctor(
                 name=name,
@@ -162,7 +71,6 @@ class DoctorList(Resource):
                 department_id=department_id,
                 user_id=user_id
             )
-
             db.session.add(new_doctor)
             db.session.commit()
 
@@ -177,145 +85,40 @@ class DoctorList(Resource):
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
-class DoctorByID(Resource):
-    """Resource for interacting with a specific doctor by ID."""
 
-    @role_required(['admin', 'department_manager', 'doctor', 'patient']) # More roles can view specific doctor info
+@doctor_ns.route('/<int:id>')
+class DoctorByID(Resource):
+
+    @role_required(['admin', 'department_manager', 'doctor', 'patient'])
+    @doctor_ns.response(200, 'Success')
+    @doctor_ns.response(404, 'Doctor not found')
     def get(self, id):
-        """
-        Get a Doctor by ID
-        Retrieves details of a specific doctor by their ID.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Doctors
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the doctor to retrieve.
-        responses:
-          200:
-            description: Doctor details.
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                name:
-                  type: string
-                specialization:
-                  type: string
-                department_id:
-                  type: integer
-                department_name:
-                  type: string
-                user_id:
-                  type: integer
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden.
-          404:
-            description: Doctor not found.
-            schema:
-              type: object
-              properties:
-                error:
-                  type: string
-          500:
-            description: Internal server error.
-        """
+        """Get a doctor by ID"""
         try:
             doctor = Doctor.query.get(id)
             if not doctor:
-                return jsonify({'error': 'Doctor not found'}), 404
+                return {'error': 'Doctor not found'}, 404
 
             doc_dict = doctor.to_dict()
             if doctor.department:
                 doc_dict['department_name'] = doctor.department.name
-
-            return jsonify(doc_dict), 200
+            return jsonify(doc_dict)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin', 'department_manager']) # Only Admins and Dept Managers can update
+    @role_required(['admin', 'department_manager'])
+    @doctor_ns.expect(update_doctor_model)
+    @doctor_ns.response(200, 'Doctor updated successfully')
+    @doctor_ns.response(404, 'Doctor or department not found')
+    @doctor_ns.response(409, 'Conflict: integrity error')
     def patch(self, id):
-        """
-        Update a Doctor by ID
-        Updates existing fields of a specific doctor.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Doctors
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the doctor to update.
-          - in: body
-            name: body
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                  description: New name for the doctor.
-                  example: Dr. Alice Smith
-                specialization:
-                  type: string
-                  description: New specialization for the doctor.
-                  example: Pediatric Cardiology
-                department_id:
-                  type: integer
-                  description: New ID of the department the doctor belongs to.
-                  example: 2
-                user_id:
-                  type: integer
-                  description: New user ID to link the doctor to.
-                  example: 5
-        responses:
-          200:
-            description: Doctor updated successfully.
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                name:
-                  type: string
-                specialization:
-                  type: string
-                department_id:
-                  type: integer
-                department_name:
-                  type: string
-                user_id:
-                  type: integer
-          400:
-            description: Bad request (e.g., validation error, invalid format).
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden.
-          404:
-            description: Doctor or Department not found.
-          409:
-            description: Conflict (e.g., duplicate user_id).
-          500:
-            description: Internal server error.
-        """
+        """Update a doctor by ID"""
         try:
             doctor = Doctor.query.get(id)
             if not doctor:
-                return jsonify({'error': 'Doctor not found'}), 404
+                return {'error': 'Doctor not found'}, 404
 
             data = request.get_json()
-
             if 'name' in data:
                 doctor.name = data['name']
             if 'specialization' in data:
@@ -323,10 +126,10 @@ class DoctorByID(Resource):
             if 'department_id' in data:
                 department = Department.query.get(data['department_id'])
                 if not department:
-                    return jsonify({'error': 'Department not found'}), 404
+                    return {'error': 'Department not found'}, 404
                 doctor.department_id = data['department_id']
             if 'user_id' in data:
-                doctor.user_id = data['user_id'] # Can update user link
+                doctor.user_id = data['user_id']
 
             db.session.commit()
             return jsonify(doctor.to_dict()), 200
@@ -340,43 +143,15 @@ class DoctorByID(Resource):
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin']) # Only Admins can delete doctors
+    @role_required(['admin'])
+    @doctor_ns.response(204, 'Doctor deleted')
+    @doctor_ns.response(404, 'Doctor not found')
     def delete(self, id):
-        """
-        Delete a Doctor by ID
-        Deletes a specific doctor by their ID.
-        ---
-        security:
-          - BearerAuth: []
-        tags:
-          - Doctors
-        parameters:
-          - in: path
-            name: id
-            type: integer
-            required: true
-            description: ID of the doctor to delete.
-        responses:
-          204:
-            description: Doctor deleted successfully (No Content).
-          401:
-            description: Unauthorized.
-          403:
-            description: Forbidden.
-          404:
-            description: Doctor not found.
-            schema:
-              type: object
-              properties:
-                error:
-                  type: string
-          500:
-            description: Internal server error.
-        """
+        """Delete a doctor by ID"""
         try:
             doctor = Doctor.query.get(id)
             if not doctor:
-                return jsonify({'error': 'Doctor not found'}), 404
+                return {'error': 'Doctor not found'}, 404
 
             db.session.delete(doctor)
             db.session.commit()
