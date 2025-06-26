@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+Server/instance/hospital.db
+Server/migrations/script.py.mako
+Server/migrations/alembic.ini
+Server/instance/hospital.db
