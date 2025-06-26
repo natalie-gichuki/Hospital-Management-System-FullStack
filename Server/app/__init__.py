@@ -44,3 +44,4 @@ def create_app():
         from . import models
         # db.create_all()  # Flask-Migrate handles this
     return app
+

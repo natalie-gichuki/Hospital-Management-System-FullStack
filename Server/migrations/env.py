@@ -1,11 +1,9 @@
-# migrations/env.py
 from __future__ import with_statement
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-from logging.config import fileConfig
 import logging
+from logging.config import fileConfig
 
+from alembic import context
 from flask import current_app
 
 # Alembic Config object
@@ -13,57 +11,76 @@ config = context.config
 fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
+
+# Handle Flask-SQLAlchemy engine access depending on version
+def get_engine():
+    try:
+        return current_app.extensions['migrate'].db.get_engine()
+    except (TypeError, AttributeError):
+        return current_app.extensions['migrate'].db.engine
+
+
+def get_engine_url():
+    try:
+        return get_engine().url.render_as_string(hide_password=False).replace('%', '%%')
+    except AttributeError:
+        return str(get_engine().url).replace('%', '%%')
+
+
+# Set SQLAlchemy URL dynamically
+config.set_main_option('sqlalchemy.url', get_engine_url())
+target_db = current_app.extensions['migrate'].db
+
+
 def get_metadata():
-    return current_app.extensions['migrate'].db.metadata
+    if hasattr(target_db, 'metadatas'):
+        return target_db.metadatas[None]
+    return target_db.metadata
 
-def run_migrations_online():
-    """
-    Run migrations in 'online' mode using the Flask app context.
-    """
-    from app import create_app
 
-    app = create_app()
+# No-op migration prevention
+def process_revision_directives(context, revision, directives):
+    if getattr(config.cmd_opts, 'autogenerate', False):
+        script = directives[0]
+        if script.upgrade_ops.is_empty():
+            directives[:] = []
+            logger.info('No changes in schema detected.')
 
-    # This callback prevents migration scripts if no schema changes exist
-    def process_revision_directives(context, revision, directives):
-        if getattr(config.cmd_opts, 'autogenerate', False):
-            script = directives[0]
-            if script.upgrade_ops.is_empty():
-                directives[:] = []
-                logger.info('No changes in schema detected.')
 
-    connectable = None
-
-    with app.app_context():
-        connectable = current_app.extensions['migrate'].db.engine
-
-        context.configure(
-            connection=connectable.connect(),
-            target_metadata=get_metadata(),
-            process_revision_directives=process_revision_directives,
-            compare_type=True,
-        )
-
-        with context.begin_transaction():
-            context.run_migrations()
-
+# Offline mode
 def run_migrations_offline():
-    """
-    Run migrations in 'offline' mode without a Flask app context.
-    """
+    """Run migrations in 'offline' mode (no DB connection)."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=get_metadata(),
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        dialect_opts={"paramstyle": "named"},
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
+# Online mode
+def run_migrations_online():
+    """Run migrations in 'online' mode with live DB connection."""
+    conf_args = current_app.extensions['migrate'].configure_args
+    if conf_args.get("process_revision_directives") is None:
+        conf_args["process_revision_directives"] = process_revision_directives
+
+    connectable = get_engine()
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=get_metadata(),
+            **conf_args
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+# Entry point
 if context.is_offline_mode():
     run_migrations_offline()
 else:
