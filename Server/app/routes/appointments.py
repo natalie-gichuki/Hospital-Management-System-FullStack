@@ -7,10 +7,48 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
 class AppointmentList(Resource):
-    """Resource for listing and creating appointments."""
+    """
+    Appointment List Resource
+    Manages listing all appointments and creating new ones.
+    """
 
     @role_required(['admin', 'doctor', 'patient', 'department_manager']) # All relevant roles can view appointments
     def get(self):
+        """
+        Get all Appointments
+        Retrieves a list of all appointments.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Appointments
+        responses:
+          200:
+            description: A list of appointments.
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  patient_id:
+                    type: integer
+                  doctor_id:
+                    type: integer
+                  appointment_date:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+          401:
+            description: Unauthorized (missing or invalid token).
+          403:
+            description: Forbidden (insufficient role).
+          500:
+            description: Internal server error.
+        """
+        
         try:
             appointments = Appointment.query.all()
             appointment_list = []
@@ -30,6 +68,62 @@ class AppointmentList(Resource):
 
     @role_required(['admin', 'doctor', 'patient', 'department_manager']) # Any role can potentially create an appointment
     def post(self):
+        """
+        Create a new Appointment
+        Creates a new appointment in the system.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Appointments
+        parameters:
+          - in: body
+            name: appointment
+            description: Appointment object to be created.
+            required: true
+            schema:
+                type: object
+                properties:
+                    patient_id:
+                        type: integer
+                        description: ID of the patient for the appointment.
+                    doctor_id:
+                        type: integer
+                        description: ID of the doctor for the appointment.
+                    appointment_date:
+                        type: string
+                        format: date-time
+                        description: Date and time of the appointment (ISO format, e.g., YYYY-MM-DDTHH:MM:SS).
+                    status:
+                        type: string
+                        description: Status of the appointment (e.g., 'Scheduled', 'Completed', 'Canceled'). Defaults to 'Scheduled'.
+                        enum: ['Scheduled', 'Completed', 'Canceled']
+        responses:
+          201:
+            description: Appointment has been created successfully.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                patient_id:
+                  type: integer
+                doctor_id:
+                  type: integer
+                appointment_date:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+          400:
+            description: Bad request (missing required fields, invalid date format, past date).
+          404:
+            description: Patient or Doctor not found.
+          409:
+            description: Conflict (integrity error).
+          500:
+            description: Internal server error.
+        """
         try:
             data = request.get_json()
 
@@ -80,10 +174,53 @@ class AppointmentList(Resource):
             return jsonify({'error': str(e)}), 500
 
 class AppointmentByID(Resource):
-    """Resource for interacting with a specific appointment by ID."""
+    """
+    Appointment By ID Resource
+    Manages retrieving, updating, and deleting a specific appointment.
+    """
 
     @role_required(['admin', 'doctor', 'patient', 'department_manager'])
     def get(self, id):
+        """
+        Get an Appointment by ID
+        Retrieves details of a specific appointment by its ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Appointments
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the appointment to retrieve.
+        responses:
+          200:
+            description: Appointment details.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                patient_id:
+                  type: integer
+                doctor_id:
+                  type: integer
+                appointment_date:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden (e.g., patient/doctor trying to view another's record).
+          404:
+            description: Appointment not found.
+          500:
+            description: Internal server error.
+        """
         try:
             appointment = Appointment.query.get(id)
             if not appointment:
@@ -111,6 +248,55 @@ class AppointmentByID(Resource):
 
     @role_required(['admin', 'doctor', 'department_manager']) # Admins, Doctors, Dept Managers can update
     def patch(self, id):
+        """
+        Update an Appointment by ID
+        Updates existing fields of a specific appointment.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Appointments
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the appointment to update.
+          - in: body
+            name: body
+            schema:
+              type: object
+              properties:
+                patient_id:
+                  type: integer
+                  description: New patient ID for the appointment.
+                doctor_id:
+                  type: integer
+                  description: New doctor ID for the appointment.
+                appointment_date:
+                  type: string
+                  format: date-time
+                  description: New date and time for the appointment (ISO format).
+                status:
+                  type: string
+                  description: New status for the appointment.
+                  enum: ['Scheduled', 'Completed', 'Canceled']
+        responses:
+          200:
+            description: Appointment updated successfully.
+          400:
+            description: Bad request (e.g., validation error, invalid date format, past date).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Appointment, Patient, or Doctor not found.
+          409:
+            description: Conflict (integrity error).
+          500:
+            description: Internal server error.
+        """
         try:
             appointment = Appointment.query.get(id)
             if not appointment:
@@ -153,6 +339,32 @@ class AppointmentByID(Resource):
 
     @role_required(['admin', 'department_manager']) # Only Admins and Dept Managers can delete appointments
     def delete(self, id):
+        """
+        Delete an Appointment by ID
+        Deletes a specific appointment by its ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Appointments
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the appointment to delete.
+        responses:
+          204:
+            description: Appointment deleted successfully (No Content).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Appointment not found.
+          500:
+            description: Internal server error.
+        """
         try:
             appointment = Appointment.query.get(id)
             if not appointment:

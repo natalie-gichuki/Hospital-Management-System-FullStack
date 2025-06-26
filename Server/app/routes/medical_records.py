@@ -9,6 +9,47 @@ from datetime import datetime
 class MedicalRecordList(Resource):
     """Resource for listing and creating medical records."""
 
+    def get(self):
+        """
+        Get all Medical Records
+        Retrieves a list of all medical records.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Medical Records
+        responses:
+          200:
+            description: A list of medical records.
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  patient_id:
+                    type: integer
+                  patient_name:
+                    type: string
+                  doctor_id:
+                    type: integer
+                  doctor_name:
+                    type: string
+                  visit_date:
+                    type: string
+                    format: date-time
+                  diagnosis:
+                    type: string
+                  treatment:
+                    type: string
+          401:
+            description: Unauthorized (missing or invalid token).
+          403:
+            description: Forbidden (insufficient role).
+          500:
+            description: Internal server error.
+        """
     @role_required(['admin', 'doctor', 'department_manager']) # Admins, Doctors, Dept Managers can view
     def get(self):
         try:
@@ -25,6 +66,68 @@ class MedicalRecordList(Resource):
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
+
+    def post(self):
+        """
+        Create a new Medical Record
+        Creates a new medical record in the system.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Medical Records
+        parameters:
+          - in: body
+            name: medical_record
+            description: Medical record object to be created.
+            required: true
+            schema:
+                type: object
+                properties:
+                    patient_id:
+                        type: integer
+                        description: ID of the patient.
+                    doctor_id:
+                        type: integer
+                        description: ID of the doctor.
+                    visit_date:
+                        type: string
+                        format: date-time
+                        description: Date and time of the visit (ISO format, e.g., YYYY-MM-DDTHH:MM:SS). Defaults to current UTC time.
+                    diagnosis:
+                        type: string
+                        description: Diagnosis for the patient.
+                    treatment:
+                        type: string
+                        description: Treatment provided to the patient.
+        responses:
+          201:
+            description: Medical record has been created successfully.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                patient_id:
+                  type: integer
+                doctor_id:
+                  type: integer
+                visit_date:
+                  type: string
+                  format: date-time
+                diagnosis:
+                  type: string
+                treatment:
+                  type: string
+          400:
+            description: Bad request (missing required fields, invalid date format).
+          404:
+            description: Patient or Doctor not found.
+          409:
+            description: Conflict (integrity error).
+          500:
+            description: Internal server error.
+        """
 
     @role_required(['admin', 'doctor']) # Only Admins and Doctors can create medical records
     def post(self):
@@ -78,6 +181,53 @@ class MedicalRecordList(Resource):
 class MedicalRecordByID(Resource):
     """Resource for interacting with a specific medical record by ID."""
 
+    def get(self, id):
+        """
+        Get a Medical Record by ID
+        Retrieves details of a specific medical record by its ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Medical Records
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the medical record to retrieve.
+        responses:
+          200:
+            description: Medical record details.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                patient_id:
+                  type: integer
+                patient_name:
+                  type: string
+                doctor_id:
+                  type: integer
+                doctor_name:
+                  type: string
+                visit_date:
+                  type: string
+                  format: date-time
+                diagnosis:
+                  type: string
+                treatment:
+                  type: string
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden (e.g., patient/doctor trying to view another's record).
+          404:
+            description: Medical record not found.
+          500:
+            description: Internal server error.
+        """
     @role_required(['admin', 'doctor', 'patient', 'department_manager']) # Admins, Doctors, Patients (their own), Dept Managers can view
     def get(self, id):
         try:
@@ -102,6 +252,58 @@ class MedicalRecordByID(Resource):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    def patch(self, id):
+        """
+        Update a Medical Record by ID
+        Updates existing fields of a specific medical record.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Medical Records
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the medical record to update.
+          - in: body
+            name: body
+            schema:
+              type: object
+              properties:
+                patient_id:
+                  type: integer
+                  description: New patient ID for the medical record.
+                doctor_id:
+                  type: integer
+                  description: New doctor ID for the medical record.
+                visit_date:
+                  type: string
+                  format: date-time
+                  description: New date and time for the visit (ISO format).
+                diagnosis:
+                  type: string
+                  description: New diagnosis for the patient.
+                treatment:
+                  type: string
+                  description: New treatment provided to the patient.
+        responses:
+          200:
+            description: Medical record updated successfully.
+          400:
+            description: Bad request (e.g., validation error, invalid date format).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Medical record, Patient, or Doctor not found.
+          409:
+            description: Conflict (integrity error).
+          500:
+            description: Internal server error.
+        """
     @role_required(['admin', 'doctor']) # Only Admins and Doctors can update medical records
     def patch(self, id):
         try:
@@ -142,6 +344,34 @@ class MedicalRecordByID(Resource):
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
+
+    def delete(self, id):
+        """
+        Delete a Medical Record by ID
+        Deletes a specific medical record by its ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Medical Records
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the medical record to delete.
+        responses:
+          204:
+            description: Medical record deleted successfully (No Content).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Medical record not found.
+          500:
+            description: Internal server error.
+        """
 
     @role_required(['admin']) # Only Admins can delete medical records
     def delete(self, id):

@@ -9,8 +9,42 @@ from datetime import datetime
 class PatientList(Resource):
     """Resource for listing and creating patients."""
 
-    @role_required(['admin', 'doctor', 'department_manager']) # Admins, Doctors, Dept Managers can view patients
+    @role_required(['admin', 'doctor', 'department_manager'])
     def get(self):
+        """
+        Get all Patients
+        Retrieves a list of all Patients.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Patients
+        responses:
+          200:
+            description: A list of patients.
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  date_of_birth:
+                    type: string
+                    format: date
+                  contact_number:
+                    type: string
+                  user_id:
+                    type: integer
+          401:
+            description: Unauthorized (missing or invalid token).
+          403:
+            description: Forbidden (insufficient role).
+          500:
+            description: Internal server error.
+        """
         try:
             patients = Patient.query.all()
             patient_list = [patient.to_dict() for patient in patients]
@@ -19,8 +53,56 @@ class PatientList(Resource):
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin', 'department_manager', 'doctor']) # Admins, Dept Managers, Doctors can register patients
+    @role_required(['admin', 'department_manager', 'doctor'])
     def post(self):
+        """
+        Create a new Patient
+        Registers a new patient in the system.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Patients
+        parameters:
+          - in: body
+            name: patient
+            description: Patient object to be created.
+            required: true
+            schema:
+                type: object
+                properties:
+                    name:
+                        type: string
+                        description: Name of the patient.
+                    date_of_birth:
+                        type: string
+                        format: date
+                        description: Date of birth of the patient (YYYY-MM-DD).
+                    contact_number:
+                        type: string
+                        description: Contact number of the patient (must be unique).
+                    user_id:
+                        type: integer
+                        description: Optional user ID to link the patient to a specific user.
+        responses:
+          201:
+            description: Patient has been created successfully.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                contact_number:
+                  type: string
+          400:
+            description: Bad request (missing required fields, invalid date format).
+          409:
+            description: Conflict (patient with this contact number already exists).
+          500:
+            description: Internal server error.
+        """
         try:
             data = request.get_json()
 
@@ -64,8 +146,48 @@ class PatientList(Resource):
 class PatientByID(Resource):
     """Resource for interacting with a specific patient by ID."""
 
-    @role_required(['admin', 'doctor', 'patient', 'department_manager']) # Admins, Doctors, Patients (their own), Dept Managers can view
+    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
     def get(self, id):
+        """
+        Get a Patient by ID
+        Retrieves details of a specific patient by their ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Patients
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the patient to retrieve.
+        responses:
+          200:
+            description: Patient details.
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+                date_of_birth:
+                  type: string
+                  format: date
+                contact_number:
+                  type: string
+                user_id:
+                  type: integer
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden (e.g., patient trying to view another patient's record).
+          404:
+            description: Patient not found.
+          500:
+            description: Internal server error.
+        """
         try:
             patient = Patient.query.get(id)
             if not patient:
@@ -80,8 +202,56 @@ class PatientByID(Resource):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin', 'department_manager', 'doctor']) # Admins, Dept Managers, Doctors can update patient info
+    @role_required(['admin', 'department_manager', 'doctor'])
     def patch(self, id):
+        """
+        Update a Patient by ID
+        Updates existing fields of a specific patient.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Patients
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the patient to update.
+          - in: body
+            name: body
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: New name for the patient.
+                date_of_birth:
+                  type: string
+                  format: date
+                  description: New date of birth for the patient (YYYY-MM-DD).
+                contact_number:
+                  type: string
+                  description: New contact number for the patient (must be unique).
+                user_id:
+                  type: integer
+                  description: New user ID to link the patient to.
+        responses:
+          200:
+            description: Patient updated successfully.
+          400:
+            description: Bad request (e.g., validation error, invalid date format).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Patient not found.
+          409:
+            description: Conflict (e.g., duplicate contact number).
+          500:
+            description: Internal server error.
+        """
         try:
             patient = Patient.query.get(id)
             if not patient:
@@ -115,8 +285,34 @@ class PatientByID(Resource):
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
-    @role_required(['admin']) # Only Admins can delete patients
+    @role_required(['admin'])
     def delete(self, id):
+        """
+        Delete a Patient by ID
+        Deletes a specific patient by their ID.
+        ---
+        security:
+          - BearerAuth: []
+        tags:
+          - Patients
+        parameters:
+          - in: path
+            name: id
+            type: integer
+            required: true
+            description: ID of the patient to delete.
+        responses:
+          204:
+            description: Patient deleted successfully (No Content).
+          401:
+            description: Unauthorized.
+          403:
+            description: Forbidden.
+          404:
+            description: Patient not found.
+          500:
+            description: Internal server error.
+        """
         try:
             patient = Patient.query.get(id)
             if not patient:
