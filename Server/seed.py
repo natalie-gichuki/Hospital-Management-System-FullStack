@@ -1,128 +1,143 @@
-from app import create_app, db
-from app.models import Doctor, Department, Patient, Appointment, MedicalRecord, User # Import User
-from datetime import date, datetime, timedelta
-from sqlalchemy.exc import IntegrityError
+from app import db, create_app
+from app.models import User, Doctor, Department, Patient, Inpatient, Outpatient, Appointment, MedicalRecord
+from faker import Faker
+from datetime import datetime, timedelta
+import random
+from random import choice as rc
 
+fake = Faker()
 app = create_app()
 
-with app.app_context():
-    print("Clearing existing data...")
-    db.drop_all()
-    db.create_all()
-    print("Database cleared and recreated.")
+def seed_data():
+    with app.app_context():
+        print("Clearing existing data...")
+        db.drop_all()
+        db.create_all()
+        print("Database cleared and recreated.")
 
-    # --- Create Users first ---
-    user_admin = User(username="admin", role="admin")
-    user_admin.password = "adminpass" # Set password
-    db.session.add(user_admin)
-    db.session.flush() # To get user_admin.id
+        # === USERS, DOCTORS & DEPARTMENTS ===
+        print("Seeding Departments, Doctors & Users...")
+        departments_data = [
+            ("Cardiology", "Heart specialist"),
+            ("Neurology", "Brain specialist"),
+            ("Pediatrics", "Child specialist"),
+            ("Dermatology", "Skin specialist"),
+            ("Surgery", "General surgery"),
+        ]
 
-    user_dept_manager = User(username="dept_manager", role="department_manager")
-    user_dept_manager.password = "deptpass"
-    db.session.add(user_dept_manager)
-    db.session.flush()
+        doctors = []
+        departments = []
 
-    user_doctor1 = User(username="dr_alice", role="doctor")
-    user_doctor1.password = "alicesspass"
-    db.session.add(user_doctor1)
-    db.session.flush()
+        # First, create doctors and users without department links
+        for _ in range(len(departments_data)):
+            doc_name = fake.name()
+            user = User(
+                username=doc_name.lower().replace(" ", ""),
+                password="password",
+                role="doctor"
+            )
+            doctor = Doctor(
+                name=doc_name,
+                specialization=fake.job(),
+                contact=fake.email(),
+                user=user
+            )
+            db.session.add_all([user, doctor])
+            doctors.append(doctor)
 
-    user_doctor2 = User(username="dr_brian", role="doctor")
-    user_doctor2.password = "brianspass"
-    db.session.add(user_doctor2)
-    db.session.flush()
+        db.session.commit()  # ✅ Commit doctors first
 
-    user_patient1 = User(username="jane_doe", role="patient")
-    user_patient1.password = "janesspass"
-    db.session.add(user_patient1)
-    db.session.flush()
+        # Now create departments and assign head doctors
+        for i, (dept_name, specialty) in enumerate(departments_data):
+            dept = Department(
+                name=dept_name,
+                specialty=specialty,
+                head_doctor=doctors[i]
+            )
+            doctors[i].department = dept  # assign department to doctor
 
-    user_patient2 = User(username="john_smith", role="patient")
-    user_patient2.password = "johnsspass"
-    db.session.add(user_patient2)
-    db.session.flush()
+            db.session.add(dept)
+            departments.append(dept)
 
-    # --- Create Doctors and link to Users ---
-    doc1 = Doctor(name="Dr. Alice Mumo", specialization="Cardiology", department_id=0, user=user_doctor1)
-    db.session.add(doc1)
-    db.session.flush()
-
-    doc2 = Doctor(name="Dr. Brian Njoroge", specialization="Neurology", department_id=0, user=user_doctor2)
-    db.session.add(doc2)
-    db.session.flush()
-
-    # --- Create Departments and link to Doctors as head ---
-    dept1 = Department(name="Cardiology", specialty="Heart", head_doctor_id=doc1.id)
-    db.session.add(dept1)
-    db.session.flush()
-
-    dept2 = Department(name="Neurology", specialty="Brain & Nervous System", head_doctor_id=doc2.id)
-    db.session.add(dept2)
-    db.session.flush()
-
-    # --- Update Doctors with real department_id ---
-    doc1.department_id = dept1.id
-    doc2.department_id = dept2.id
-
-    # --- Create Patients and link to Users ---
-    patient1 = Patient(name="Jane Doe", date_of_birth=date(1990, 4, 12), contact_number="0712345678", user=user_patient1)
-    db.session.add(patient1)
-    db.session.flush()
-
-    patient2 = Patient(name="John Smith", date_of_birth=date(1985, 7, 20), contact_number="0723456789", user=user_patient2)
-    db.session.add(patient2)
-    db.session.flush()
-
-    # --- Create Appointments ---
-    # Appointment for Jane Doe with Dr. Alice (Cardiology)
-    appt1_date = datetime.utcnow() + timedelta(days=5, hours=10)
-    appt1 = Appointment(patient=patient1, doctor=doc1, appointment_date=appt1_date, status='Scheduled')
-    db.session.add(appt1)
-
-    # Appointment for John Smith with Dr. Brian (Neurology)
-    appt2_date = datetime.utcnow() + timedelta(days=2, hours=14)
-    appt2 = Appointment(patient=patient2, doctor=doc2, appointment_date=appt2_date, status='Scheduled')
-    db.session.add(appt2)
-
-    # Completed appointment for Jane Doe with Dr. Alice
-    appt3_date = datetime.utcnow() - timedelta(days=10, hours=9)
-    appt3 = Appointment(patient=patient1, doctor=doc1, appointment_date=appt3_date, status='Completed')
-    db.session.add(appt3)
-
-    # --- Create Medical Records ---
-    mr1 = MedicalRecord(
-        patient=patient1,
-        doctor=doc1,
-        visit_date=appt3_date, # Link to the completed appointment date
-        diagnosis="Common cold, mild symptoms.",
-        treatment="Rest and fluids, paracetamol."
-    )
-    db.session.add(mr1)
-
-    mr2 = MedicalRecord(
-        patient=patient2,
-        doctor=doc2,
-        visit_date=datetime.utcnow() - timedelta(days=1),
-        diagnosis="Migraine episode, chronic.",
-        treatment="Prescribed sumatriptan and lifestyle changes."
-    )
-    db.session.add(mr2)
+        db.session.commit()  # ✅ Commit departments after resolving dependencies
+        print(f"✅ {len(doctors)} Doctors, Users, and Departments created.")
 
 
-    try:
+        # === PATIENTS & USERS ===
+        print("Seeding Patients & Users...")
+        patients = []
+        for _ in range(20):
+            name = fake.name()
+            role = rc(["inpatient", "outpatient", "patient"])
+            user = User(username=name.lower().replace(" ", ""), password="password", role="patient")
+
+            if role == "inpatient":
+                patient = Inpatient(
+                    name=name,
+                    age=random.randint(1, 90),
+                    gender=rc(["Male", "Female"]),
+                    admission_date=str(fake.date_this_year()),
+                    ward_number=random.randint(100, 300),
+                    user=user
+                )
+            elif role == "outpatient":
+                patient = Outpatient(
+                    name=name,
+                    age=random.randint(1, 90),
+                    gender=rc(["Male", "Female"]),
+                    last_visit_date=str(fake.date_this_year()),
+                    user=user
+                )
+            else:
+                patient = Patient(
+                    name=name,
+                    age=random.randint(1, 90),
+                    gender=rc(["Male", "Female"]),
+                    user=user
+                )
+
+            db.session.add(user)
+            db.session.add(patient)
+            patients.append(patient)
+
         db.session.commit()
-        print("Seeding successful!")
-        print("\n--- Test User Credentials ---")
-        print("Admin: username='admin', password='adminpass'")
-        print("Department Manager: username='dept_manager', password='deptpass'")
-        print("Doctor (Alice): username='dr_alice', password='alicesspass'")
-        print("Doctor (Brian): username='dr_brian', password='brianspass'")
-        print("Patient (Jane): username='jane_doe', password='janesspass'")
-        print("Patient (John): username='john_smith', password='johnsspass'")
+        print(f"✅ {len(patients)} Patients & Users added.")
 
-    except IntegrityError as e:
-        db.session.rollback()
-        print("Integrity error during seeding:", e)
-    except Exception as e:
-        db.session.rollback()
-        print("An error occurred during seeding:", e)
+        # === APPOINTMENTS ===
+        print("Seeding Appointments...")
+        reasons = [
+            "Routine checkup", "Follow-up visit", "New symptoms", "Lab results review",
+            "Skin rash evaluation", "Chronic pain management", "Vaccination", "Blood pressure monitoring"
+        ]
+
+        for _ in range(15):
+            appt = Appointment(
+                appointment_date=datetime.utcnow() + timedelta(days=random.randint(-10, 10), hours=random.randint(8, 17)),
+                reason=rc(reasons),
+                status=rc(["Scheduled", "Completed", "Cancelled"]),
+                patient=rc(patients),
+                doctor=rc(doctors)
+            )
+            db.session.add(appt)
+
+        db.session.commit()
+        print("✅ 15 Appointments created.")
+
+        # === MEDICAL RECORDS ===
+        print("Seeding Medical Records...")
+        for _ in range(20):
+            record = MedicalRecord(
+                diagnosis=fake.word().capitalize(),
+                treatment=fake.sentence(nb_words=4),
+                visit_date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                patient=rc(patients),
+                doctor=rc(doctors)
+            )
+            db.session.add(record)
+
+        db.session.commit()
+        print("✅ 20 Medical Records created.")
+        print("🎉 Seeding complete!")
+
+if __name__ == "__main__":
+    seed_data()

@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.exc import IntegrityError
 
 # ========================== USER ==========================
 class User(db.Model, SerializerMixin):
@@ -45,6 +44,7 @@ class User(db.Model, SerializerMixin):
     def __repr__(self):
         return f"<User {self.username} ({self.role})>"
 
+
 # ========================== PATIENT (POLYMORPHIC BASE) ==========================
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
@@ -56,7 +56,7 @@ class Patient(db.Model, SerializerMixin):
     gender = db.Column(db.String)
     type = db.Column(db.String, nullable=False, default='patient')
 
-    date_of_birth = db.Column(db.Date)  # Optional for base patient
+    date_of_birth = db.Column(db.Date)
     contact_number = db.Column(db.String(20), unique=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
@@ -73,6 +73,7 @@ class Patient(db.Model, SerializerMixin):
     def __repr__(self):
         return f"<Patient {self.name} ({self.type})>"
 
+
 # ========================== INPATIENT ==========================
 class Inpatient(Patient):
     __tablename__ = 'inpatients'
@@ -85,6 +86,7 @@ class Inpatient(Patient):
         'polymorphic_identity': 'inpatient'
     }
 
+
 # ========================== OUTPATIENT ==========================
 class Outpatient(Patient):
     __tablename__ = 'outpatients'
@@ -95,6 +97,7 @@ class Outpatient(Patient):
     __mapper_args__ = {
         'polymorphic_identity': 'outpatient'
     }
+
 
 # ========================== DOCTOR ==========================
 class Doctor(db.Model, SerializerMixin):
@@ -109,13 +112,25 @@ class Doctor(db.Model, SerializerMixin):
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
 
-    department = db.relationship('Department', back_populates='doctors_in_department')
+    department = db.relationship(
+        'Department',
+        back_populates='doctors_in_department',
+        foreign_keys=[department_id]
+    )
+
+    departments_headed = db.relationship(
+        'Department',
+        back_populates='head_doctor',
+        foreign_keys='Department.head_doctor_id'
+    )
+
     appointments = db.relationship('Appointment', back_populates='doctor', cascade="all, delete-orphan")
     medical_records = db.relationship('MedicalRecord', back_populates='doctor', cascade="all, delete-orphan")
     user = db.relationship('User', back_populates='doctor', uselist=False)
 
     def __repr__(self):
         return f"<Doctor {self.name}>"
+
 
 # ========================== DEPARTMENT ==========================
 class Department(db.Model, SerializerMixin):
@@ -127,8 +142,20 @@ class Department(db.Model, SerializerMixin):
     specialty = db.Column(db.String(100), nullable=False)
     head_doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'))
 
-    doctors_in_department = db.relationship('Doctor', back_populates='department')
-    head_doctor = db.relationship('Doctor', foreign_keys=[head_doctor_id], post_update=True)
+    doctors_in_department = db.relationship(
+        'Doctor',
+        back_populates='department',
+        foreign_keys=[Doctor.department_id]
+    )
+
+    head_doctor = db.relationship(
+        'Doctor',
+        back_populates='departments_headed',
+        foreign_keys=[head_doctor_id],
+        post_update=True,
+        uselist=False
+    )
+
 
 # ========================== APPOINTMENT ==========================
 class Appointment(db.Model, SerializerMixin):
@@ -136,7 +163,8 @@ class Appointment(db.Model, SerializerMixin):
     serialize_rules = ('-patient.appointments', '-doctor.appointments')
 
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.String, nullable=False)
+    appointment_date = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String, default='Scheduled')  # Scheduled, Completed, Cancelled
     reason = db.Column(db.String, nullable=False)
 
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
@@ -146,7 +174,8 @@ class Appointment(db.Model, SerializerMixin):
     doctor = db.relationship('Doctor', back_populates='appointments')
 
     def __repr__(self):
-        return f"<Appointment on {self.date} with Doctor {self.doctor_id}>"
+        return f"<Appointment on {self.appointment_date} with Doctor {self.doctor_id}>"
+
 
 # ========================== MEDICAL RECORD ==========================
 class MedicalRecord(db.Model, SerializerMixin):
@@ -163,3 +192,6 @@ class MedicalRecord(db.Model, SerializerMixin):
 
     patient = db.relationship('Patient', back_populates='medical_records')
     doctor = db.relationship('Doctor', back_populates='medical_records')
+
+    def __repr__(self):
+        return f"<MedicalRecord {self.diagnosis} for Patient {self.patient_id}>"
