@@ -1,3 +1,4 @@
+
 from flask import Flask, jsonify, request, make_response
 from flask_restful import Resource
 from app.models import Patient, Outpatient, Inpatient
@@ -96,3 +97,4 @@ class PatientMedicalRecords(Resource):
 
         records = [record.to_dict() for record in patient.medical_records]
         return make_response(records, 200)
+

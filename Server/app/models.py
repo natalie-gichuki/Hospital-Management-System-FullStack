@@ -4,6 +4,7 @@ from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 
 
+
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
 
@@ -65,15 +66,42 @@ class Medical_Record(db.Model, SerializerMixin):
     doctor = db.relationship('Doctor', back_populates='medical_records')
 
 
+
 class Doctor(db.Model, SerializerMixin):
     __tablename__ = 'doctors'
 
-    serialize_rules = ('-medical_records.doctor',)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    specialization = db.Column(db.String(100), nullable=False)
+    contact = db.Column(db.String)
+    #department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
 
-    id = db.Column(db.Integer, primary_key = True)
-    name = db.Column(db.String, nullable = False)
-    email = db.Column(db.String, nullable = False)
-    specialization = db.Column(db.String, nullable = False)
+    # Relationships
+    #department = db.relationship('Department', back_populates='doctors')
+    appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
+    #medical_records = db.relationship('Medical_record', back_populates='doctor', cascade='all, delete-orphan')
 
-    medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
+    serialize_rules = ('-appointments.doctor',) #'-department.doctors','-medical_records.doctor')
+
+    def __repr__(self):
+        return f"<Doctor {self.name}>"
+
+class Appointment(db.Model, SerializerMixin):
+    __tablename__ = 'appointments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.String, nullable=False)  # You can use db.DateTime if needed
+    reason = db.Column(db.String, nullable=False)
+
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
+
+    # Relationships
+    patient = db.relationship("Patient", back_populates="appointments")
+    doctor = db.relationship("Doctor", back_populates="appointments")
+
+    serialize_rules = ('-patient.appointments', '-doctor.appointments')
+
+    def __repr__(self):
+        return f"<Appointment {self.date} with Doctor {self.doctor_id}>"
     

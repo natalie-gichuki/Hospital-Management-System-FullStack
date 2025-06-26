@@ -1,8 +1,12 @@
+
 #from .models import Doctor, Patient, Department, Appointment, Medical_Record
 from app import db, create_app
+
 from faker import Faker
+from datetime import datetime, timedelta
 import random
 from random import choice as rc
+
 from app.models import Patient, Inpatient, Outpatient, Medical_Record, Doctor  # Ensure these are correctly imported
 import random
 
