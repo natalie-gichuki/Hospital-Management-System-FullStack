@@ -1,47 +1,109 @@
-from .models import Doctor, Appointment, Patient
-from . import db, create_app
+
+#from .models import Doctor, Patient, Department, Appointment, Medical_Record
+from app import db, create_app
+
 from faker import Faker
 from datetime import datetime, timedelta
 import random
 from random import choice as rc
 
+from app.models import Patient, Inpatient, Outpatient, Medical_Record, Doctor  # Ensure these are correctly imported
+import random
+
+fake = Faker()
 app = create_app()
 
-with app.app_context():
-    print("Seeding data...")
+def seed_data():
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
 
-    # Clear existing data
-    Appointment.query.delete()
-    Doctor.query.delete()
-    Patient.query.delete()
+        print('Start Seeding...')
 
-    # Create doctors
-    doctor1 = Doctor(name="Dr. Alice Smith", specialization="Cardiology")
-    doctor2 = Doctor(name="Dr. Bob Johnson", specialization="Neurology")
+        # Seed Doctors
+                # Seed Doctors (manual)
+        print("👨‍⚕️ Seeding Doctors...")
+        doctors = [
+            Doctor(name="Dr. Alice Kamau", specialization="Cardiologist", email="alice.kamau@hospital.com"),
+            Doctor(name="Dr. Brian Otieno", specialization="Neurologist", email="brian.otieno@hospital.com"),
+            Doctor(name="Dr. Cynthia Mwangi", specialization="Pediatrician", email="cynthia.mwangi@hospital.com"),
+            Doctor(name="Dr. Daniel Kiprotich", specialization="Dermatologist", email="daniel.kiprotich@hospital.com"),
+            Doctor(name="Dr. Emily Wambui", specialization="General Surgeon", email="emily.wambui@hospital.com"),
+            Doctor(name="Dr. Felix Njoroge", specialization="Radiologist", email="felix.njoroge@hospital.com"),
+            Doctor(name="Dr. Grace Achieng", specialization="Gynecologist", email="grace.achieng@hospital.com"),
+            Doctor(name="Dr. Henry Kimani", specialization="Oncologist", email="henry.kimani@hospital.com"),
+            Doctor(name="Dr. Irene Mutua", specialization="ENT Specialist", email="irene.mutua@hospital.com"),
+            Doctor(name="Dr. James Mwenda", specialization="Orthopedic Surgeon", email="james.mwenda@hospital.com"),
+        ]
 
-    # Create patients
-    patient1 = Patient(name="John Doe", gender="Male", admission_type="Inpatient")
-    patient2 = Patient(name="Jane Doe", gender="Female", admission_type="Outpatient")
+        for doctor in doctors:
+            db.session.add(doctor)
+        db.session.commit()
+        print("✅ 10 Manual Doctors added.")
 
-    db.session.add_all([doctor1, doctor2, patient1, patient2])
-    db.session.commit()
 
-    # Create appointments
-    appointment1 = Appointment(
-        date=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        reason="Routine checkup",
-        patient_id=patient1.id,
-        doctor_id=doctor1.id
-    )
+        # Seed Patients
+        print('Seeding Patients...')
+        for p in range(20):
+            if random.choice(['in', 'out']) == 'in':
+                patient = Inpatient(
+                    name=fake.name(),
+                    age=random.randint(1, 200),
+                    gender=random.choice(['Male', 'Female']),
+                    admission_date=str(fake.date_this_year()),
+                    ward_number=random.randint(100, 999),
+                    type='inpatient'
+                )
+            else:
+                patient = Outpatient(
+                    name=fake.name(),
+                    age=random.randint(1, 90),
+                    gender=random.choice(['Male', 'Female']),
+                    last_visit_date=str(fake.date_this_year()),
+                    type='outpatient'
+                )
+            db.session.add(patient)
 
-    appointment2 = Appointment(
-        date=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M"),
-        reason="Follow-up visit",
-        patient_id=patient2.id,
-        doctor_id=doctor2.id
-    )
+        db.session.commit()
 
-    db.session.add_all([appointment1, appointment2])
-    db.session.commit()
+        # Seed Medical Records
+        print('📋 Seeding Medical Records ...')
+        patients = Patient.query.all()
+        if not patients or not doctors:
+            print("⚠️ Cannot seed medical records — missing patients or doctors.")
+            return
 
-    print("✅ Seeded doctors, patients, and appointments.")
+        records = [
+            Medical_Record(diagnosis="Flu", treatment="Rest and paracetamol", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-01"),
+            Medical_Record(diagnosis="Asthma", treatment="Use inhaler daily", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-03"),
+            Medical_Record(diagnosis="Malaria", treatment="Artemether-lumefantrine", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-05"),
+            Medical_Record(diagnosis="Hypertension", treatment="Amlodipine 5mg daily", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-07"),
+            Medical_Record(diagnosis="Diabetes", treatment="Insulin therapy", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-09"),
+            Medical_Record(diagnosis="Migraine", treatment="Ibuprofen as needed", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-11"),
+            Medical_Record(diagnosis="COVID-19", treatment="Home isolation + vitamins", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-13"),
+            Medical_Record(diagnosis="Allergy", treatment="Cetirizine 10mg daily", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-15"),
+            Medical_Record(diagnosis="Fracture", treatment="Apply cast for 6 weeks", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-17"),
+            Medical_Record(diagnosis="Ulcer", treatment="Omeprazole 20mg daily", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-19"),
+            Medical_Record(diagnosis="Sinusitis", treatment="Nasal spray & rest", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-21"),
+            Medical_Record(diagnosis="Back pain", treatment="Physical therapy", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-23"),
+            Medical_Record(diagnosis="Toothache", treatment="Tooth extraction", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-25"),
+            Medical_Record(diagnosis="Ear infection", treatment="Antibiotic ear drops", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-27"),
+            Medical_Record(diagnosis="Pneumonia", treatment="Azithromycin 5 days", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-29"),
+            Medical_Record(diagnosis="Sprain", treatment="R.I.C.E therapy", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-01-31"),
+            Medical_Record(diagnosis="Bronchitis", treatment="Steam & cough syrup", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-02-02"),
+            Medical_Record(diagnosis="Anemia", treatment="Iron supplements", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-02-04"),
+            Medical_Record(diagnosis="Chickenpox", treatment="Calamine & antihistamine", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-02-06"),
+            Medical_Record(diagnosis="Thyroid disorder", treatment="Levothyroxine", patient_id=rc(patients).id, doctor_id=rc(doctors).id, date="2025-02-08"),
+        ]
+
+        for record in records:
+            db.session.add(record)
+
+        db.session.commit()
+        print("✅ 20 Manual Medical Records added.")
+
+        print("✅ Seeding complete.")
+
+if __name__ == "__main__":
+    seed_data()
+
