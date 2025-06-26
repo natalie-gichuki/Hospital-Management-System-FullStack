@@ -1,14 +1,65 @@
-# app/__init__.py
+# app/__init__.py (Updated)
 from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_restful import Api
-from flask_jwt_extended import JWTManager # Import JWTManager
+from flask_jwt_extended import JWTManager
+from flasgger import Swagger # <--- NEW IMPORT
 
 db = SQLAlchemy()
 migrate = Migrate()
-jwt = JWTManager() # Initialize JWTManager
+jwt = JWTManager()
+api = Api() # Moved api instantiation here for clarity
+
+# Define Swagger template (basic information about your API)
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Hospital Management System API",
+        "description": "API documentation for the Hospital Management System.",
+        "version": "1.0.0"
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+        }
+    },
+    "security": [
+        {
+            "BearerAuth": []
+        }
+    ],
+    "schemes": [
+        "http", # Use http for development, change to https for production
+        "https"
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ]
+}
+
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # all in
+            "model_filter": lambda tag: True,  # all in
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/apidocs/" # This is the URL where you'll access the documentation
+}
+
 
 def create_app():
     app = Flask(__name__)
@@ -17,15 +68,23 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db)
-    jwt.init_app(app) # Initialize JWT with the app
-    api = Api(app)
+    jwt.init_app(app)
+    api.init_app(app) # Initialize api with the app
+
+    # Initialize Flasgger
+    Swagger(app, template=swagger_template, config=swagger_config) # <--- NEW LINE
 
     # Import and add the authentication routes
-    from app.routes.auth import Register, Login, RefreshToken, Protected # Add Protected for example
+    from app.routes.auth import Register, Login, RefreshToken, Protected, AdminProtected, DoctorProtected, PatientProtected, DepartmentManagerProtected
     api.add_resource(Register, '/auth/register')
     api.add_resource(Login, '/auth/login')
     api.add_resource(RefreshToken, '/auth/refresh')
-    api.add_resource(Protected, '/auth/protected') # Example protected route
+    api.add_resource(Protected, '/auth/protected')
+    api.add_resource(AdminProtected, '/auth/admin-protected') # Renamed for clarity
+    api.add_resource(DoctorProtected, '/auth/doctor-protected')
+    api.add_resource(PatientProtected, '/auth/patient-protected')
+    api.add_resource(DepartmentManagerProtected, '/auth/department-manager-protected')
+
 
     # Import and add Department routes (already existing)
     from app.routes.departments import DepartmentList, DepartmentByID
@@ -50,7 +109,7 @@ def create_app():
     api.add_resource(MedicalRecordByID, '/medical_records/<int:id>')
 
     with app.app_context():
-        from . import models # Ensure models are loaded for SQLAlchemy
-        db.create_all() # This creates tables if they don't exist based on models
+        from . import models
+        # db.create_all() # Comment this out if using Flask-Migrate, as 'flask db upgrade' handles table creation
 
     return app
