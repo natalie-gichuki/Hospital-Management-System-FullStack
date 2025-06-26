@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { createPatient, getAllPatients, deletePatient} from '../services/patientService';
+import { createPatient, getAllPatients, deletePatient} from '../services/PatientService';
 
 
 const PatientForm = () => {
