@@ -11,3 +11,5 @@ Server/hospital.db
 Server/instance/hospital.db
 Server/migrations/versions/cbc05349d8ea_initial_migration.py
 Server/instance/hospital.db
+Server/migrations/versions/6de7d4e49ccb_fix_doctor_department_fk_ambiguity.py
+Server/migrations/versions/ac73724fb1d3_add_appointment_date_and_status_to_.py
