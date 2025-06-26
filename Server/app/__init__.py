@@ -1,11 +1,11 @@
-# app/__init__.py (Updated)
+# app/__init__.py (Updated with Flasgger initialization moved)
 from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
-from flasgger import Swagger # <--- NEW IMPORT
+from flasgger import Swagger # <--- IMPORT HERE
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -71,16 +71,13 @@ def create_app():
     jwt.init_app(app)
     api.init_app(app) # Initialize api with the app
 
-    # Initialize Flasgger
-    Swagger(app, template=swagger_template, config=swagger_config) # <--- NEW LINE
-
     # Import and add the authentication routes
     from app.routes.auth import Register, Login, RefreshToken, Protected, AdminProtected, DoctorProtected, PatientProtected, DepartmentManagerProtected
     api.add_resource(Register, '/auth/register')
     api.add_resource(Login, '/auth/login')
     api.add_resource(RefreshToken, '/auth/refresh')
     api.add_resource(Protected, '/auth/protected')
-    api.add_resource(AdminProtected, '/auth/admin-protected') # Renamed for clarity
+    api.add_resource(AdminProtected, '/auth/admin-protected')
     api.add_resource(DoctorProtected, '/auth/doctor-protected')
     api.add_resource(PatientProtected, '/auth/patient-protected')
     api.add_resource(DepartmentManagerProtected, '/auth/department-manager-protected')
@@ -107,6 +104,9 @@ def create_app():
     from app.routes.medical_records import MedicalRecordList, MedicalRecordByID
     api.add_resource(MedicalRecordList, '/medical_records')
     api.add_resource(MedicalRecordByID, '/medical_records/<int:id>')
+
+    # Initialize Flasgger AFTER all routes have been added to the API
+    Swagger(app, template=swagger_template, config=swagger_config) # <--- MOVED THIS LINE TO THE END
 
     with app.app_context():
         from . import models

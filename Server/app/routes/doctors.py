@@ -1,3 +1,4 @@
+# app/routes/doctors.py (Updated with corrected POST docstring)
 from flask import request, jsonify
 from flask_restful import Resource
 from app.models import Doctor, Department
@@ -30,7 +31,7 @@ class DoctorList(Resource):
                     type: integer
                   name:
                     type: string
-                  specialty:
+                  specialization:
                     type: string
                   department_id:
                     type: integer
@@ -79,20 +80,20 @@ class DoctorList(Resource):
             description: Doctor object to be created.
             required: true
             schema:
-                type: object
-                properties:
-                    name:
-                        type: string
-                        description: Name of the doctor.
-                        specialization:
-                        type: string
-                        description: Specialization of the doctor.
-                        department_id:
-                        type: integer
-                        description: ID of the department the doctor belongs to.
-                        user_id:
-                        type: integer
-                        description: Optional user ID to link the doctor to a specific user.
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the doctor.
+                specialization: # Corrected indentation
+                  type: string
+                  description: Specialization of the doctor.
+                department_id: # Corrected indentation
+                  type: integer
+                  description: ID of the department the doctor belongs to.
+                user_id:
+                  type: integer
+                  description: Optional user ID to link the doctor to a specific user.
         responses:
           201:
             description: Doctor has been created successfully.
@@ -111,14 +112,34 @@ class DoctorList(Resource):
                   type: string
                 user_id:
                   type: integer
-            400:
-                description: Bad request (missing required fields <client-side>).
-            404:
-                description: Department was not found (invalid department_id is an example cause).
-            403:
-                description: Forbidden (insufficient role).
-            500:
-                description: Internal server error.
+          400:
+            description: Bad request (missing required fields).
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+          404:
+            description: Department was not found (invalid department_id is an example cause).
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+          403:
+            description: Forbidden (insufficient role).
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
+          500:
+            description: Internal server error.
+            schema:
+                type: object
+                properties:
+                    error:
+                        type: string
             """
         try:
             data = request.get_json()
