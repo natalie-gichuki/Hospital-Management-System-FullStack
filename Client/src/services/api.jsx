@@ -4,7 +4,7 @@ import axios from 'axios';
 // Set the base URL for API requests.
 // It tries to use a value from the .env file (VITE_API_BASE_URL), 
 // and falls back to 'http://127.0.0.1:5555' if not provided.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5555';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5555/patients';
 
 // Create an axios instance with default settings.
 // This instance can be reused across your app for all API calls.
