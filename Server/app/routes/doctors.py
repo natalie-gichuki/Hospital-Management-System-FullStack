@@ -25,6 +25,7 @@ def create_doctor():
         new_doctor = Doctor(
             name=data['name'],
             specialization=data['specialization'],
+            contact=data.get('contact')
             #department_id=data.get('department_id')
         )
         db.session.add(new_doctor)
