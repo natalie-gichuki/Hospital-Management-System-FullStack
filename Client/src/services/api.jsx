@@ -53,13 +53,14 @@ const api = {
   },
 
   delete: async (endpoint) => {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: defaultHeaders,
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res;
-  },
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: defaultHeaders,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json(); // ✅ parse the JSON so the UI doesn't break
+},
+
 };
 
 export default api;
