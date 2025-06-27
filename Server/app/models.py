@@ -5,6 +5,7 @@ from sqlalchemy.orm import validates
 
 
 
+
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
 
@@ -67,10 +68,12 @@ class Medical_Record(db.Model, SerializerMixin):
 
 
 
+
 class Doctor(db.Model, SerializerMixin):
     __tablename__ = 'doctors'
 
     id = db.Column(db.Integer, primary_key=True)
+
     name = db.Column(db.String(100), nullable=False)
     specialization = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String)
