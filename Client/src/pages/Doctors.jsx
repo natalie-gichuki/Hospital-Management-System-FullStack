@@ -7,7 +7,6 @@ function Doctors() {
   const [doctors, setDoctors] = useState([]);
   const [newDoctor, setNewDoctor] = useState({ name: "", specialization: "", contact: "" });
 
-
   useEffect(() => {
     getDoctors().then(setDoctors).catch(console.error);
   }, []);
@@ -17,7 +16,7 @@ function Doctors() {
     try {
       const created = await addDoctor(newDoctor);
       setDoctors([...doctors, created]);
-      setNewDoctor({ name: "", specialization: "" });
+      setNewDoctor({ name: "", specialization: "", contact: "" });
     } catch (error) {
       console.error(error.message);
     }
@@ -33,36 +32,46 @@ function Doctors() {
   };
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Doctors</h2>
+    <div className="ml-64 p-6 bg-gray-50 min-h-screen">
+      <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-md">
+        <h2 className="text-2xl font-bold mb-6 text-blue-900">Add a New Doctor</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-2 mb-6">
-        <input
-          type="text"
-          placeholder="Doctor's Name"
-          value={newDoctor.name}
-          onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
-          className="border p-2 w-full"
-        />
-        <input
-          type="text"
-          placeholder="Specialization"
-          value={newDoctor.specialization}
-          onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
-          className="border p-2 w-full"
-        />
-        <input
-          type="text"
-          name="contact"
-          placeholder="Contact Info"
-          value={newDoctor.contact}
-          onChange={(e) => setNewDoctor({ ...newDoctor, contact: e.target.value })}
-          className="w-full border p-2 rounded"
-        />
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2">Add Doctor</button>
-      </form>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Doctor's Name"
+            value={newDoctor.name}
+            onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
+            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <input
+            type="text"
+            placeholder="Specialization"
+            value={newDoctor.specialization}
+            onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
+            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <input
+            type="text"
+            name="contact"
+            placeholder="Contact Info"
+            value={newDoctor.contact}
+            onChange={(e) => setNewDoctor({ ...newDoctor, contact: e.target.value })}
+            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition"
+          >
+            Add Doctor
+          </button>
+        </form>
+      </div>
 
-      <div className="grid gap-4">
+      <div className="max-w-6xl mx-auto mt-10 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {doctors.map((doctor) => (
           <DoctorCard key={doctor.id} doctor={doctor} onDelete={handleDelete} />
         ))}
@@ -72,4 +81,3 @@ function Doctors() {
 }
 
 export default Doctors;
-

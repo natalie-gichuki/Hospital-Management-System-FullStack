@@ -24,32 +24,51 @@ function Appointments() {
   };
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Appointments</h2>
-      <AppointmentForm onAdd={handleAdd} />
-      <ul className="space-y-2">
-        {appointments.map((a) => (
-          <li key={a.id} className="border p-3 rounded shadow">
-            <p><strong>Date:</strong> {a.date}</p>
-            <p><strong>Reason:</strong> {a.reason}</p>
-            <p><strong>Doctor:</strong> {a.doctor?.name || a.doctor_id}</p>
-            <p><strong>Patient:</strong> {a.patient?.name || a.patient_id}</p>
-            <button
-              onClick={() => handleDelete(a.id)}
-              className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div className="p-6 ml-64 bg-gray-50 min-h-screen">
+      <div className="max-w-6xl mx-auto bg-white shadow rounded-xl p-6">
+        <h2 className="text-2xl font-bold mb-4">Appointments</h2>
+        <AppointmentForm onAdd={handleAdd} />
+
+        <h3 className="text-3xl font-semibold mt-6 mb-2">All Appointments</h3>
+
+        {appointments.length === 0 ? (
+          <p className="mt-4 text-gray-600">No appointments found.</p>
+        ) : (
+          <table className="w-full table-auto border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-3 py-2">Date</th>
+                <th className="border px-3 py-2">Reason</th>
+                <th className="border px-3 py-2">Doctor</th>
+                <th className="border px-3 py-2">Patient</th>
+                <th className="border px-3 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appointments.map((a) => (
+                <tr key={a.id}>
+                  <td className="border px-3 py-2">{a.date}</td>
+                  <td className="border px-3 py-2">{a.reason}</td>
+                  <td className="border px-3 py-2">{a.doctor?.name || a.doctor_id}</td>
+                  <td className="border px-3 py-2">{a.patient?.name || a.patient_id}</td>
+                  <td className="border px-3 py-2">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleDelete(a.id)}
+                        className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
 
 export default Appointments;
-// This code defines a React component for managing appointments.
-// It fetches appointments from the server, allows adding new appointments via a form,
-// and provides a way to delete existing appointments.
-
-
