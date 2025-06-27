@@ -82,7 +82,7 @@ const Dashboard = () => {
         <h2 className="text-4xl font-bold text-[#001f54] mb-6 text-center">About Us</h2>
 
         <div className="flex flex-col md:flex-row items-center gap-8">
-          {/* Image on the Left */}
+         
           <div className="md:w-1/2">
             <img
               src="https://media.istockphoto.com/id/1312706413/photo/modern-hospital-building.jpg?s=612x612&amp;w=0&amp;k=20&amp;c=oUILskmtaPiA711DP53DFhOUvE7pfdNeEK9CfyxlGio="
@@ -91,7 +91,7 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Text on the Right */}
+         
           <div className="md:w-1/2 text-lg text-gray-700 leading-relaxed">
             <p>
               St. Catherine Memorial Hospital has served the community with excellence in healthcare for over 25 years.
