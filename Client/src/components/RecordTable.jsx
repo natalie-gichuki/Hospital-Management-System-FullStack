@@ -7,10 +7,19 @@ import {
   updateRecord,
   deleteRecord,
 } from '../services/RecordService';
+
+// Imports helper functions to fetch lists of patients and doctors.
 import { getAllPatients } from '../services/PatientService';
 // import { getAllDoctors } from '../services/DoctorService';
 
 const RecordForm = () => {
+  // records: list of medical records
+  // patients: patient data
+  // doctors: doctor data
+  // editingId: track which record is being edited
+  // success: success message
+  // error: error message
+
   const [records, setRecords] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -21,6 +30,9 @@ const RecordForm = () => {
   useEffect(() => {
     fetchAll();
   }, []);
+  
+
+  // Declares a function to fetch all records, patients, and doctors.
 
   const fetchAll = async () => {
     try {
@@ -29,6 +41,7 @@ const RecordForm = () => {
         getAllPatients(),
         getAllDoctors(),
       ]);
+      // Updates the component state with the fetched data.
       setRecords(recordsData);
       setPatients(patientsData);
       setDoctors(doctorsData);
@@ -63,6 +76,8 @@ const RecordForm = () => {
       };
 
       try {
+        // Decides whether to update an existing record or create a new one.
+
         if (editingId) {
           await updateRecord(editingId, payload);
           setSuccess('Record updated successfully.');
@@ -70,7 +85,8 @@ const RecordForm = () => {
           await createRecord(payload);
           setSuccess('Record created successfully.');
         }
-
+        
+        // Resets the form, exits edit mode, and refreshes the records list.
         resetForm();
         setEditingId(null);
         fetchAll();
@@ -80,9 +96,12 @@ const RecordForm = () => {
       }
     },
   });
+  
 
+  // Prefills form fields with record data for editing.
   const handleEdit = (record) => {
     setEditingId(record.id);
+    // Sets Formik values from the selected record.
     formik.setValues({
       diagnosis: record.diagnosis,
       treatment: record.treatment,
