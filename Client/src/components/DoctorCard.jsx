@@ -14,3 +14,4 @@ function DoctorCard({ doctor, onDelete }) {
 }
 
 export default DoctorCard;
+
