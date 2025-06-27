@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { getAppointments, deleteAppointment } from "../services/AppointmentService";
 import AppointmentForm from "../components/AppointmentForm";
@@ -50,3 +51,5 @@ export default Appointments;
 // This code defines a React component for managing appointments.
 // It fetches appointments from the server, allows adding new appointments via a form,
 // and provides a way to delete existing appointments.
+
+
