@@ -17,12 +17,12 @@ const PatientForm = () => {
   // error and success hold strings used to show feedback messages to the user.
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // This runs fetchPatients() once when the component loads 
   useEffect(() => {
     fetchPatients();
   }, []);
-  
+
 
   // This function calls the API to get all patients.
   // If successful, it updates the patients state with the response.
@@ -36,7 +36,7 @@ const PatientForm = () => {
       setError('Failed to load patients');
     }
   };
-  
+
 
   // Sets initial empty values for all form fields.(uses formik)
   const formik = useFormik({
@@ -53,30 +53,40 @@ const PatientForm = () => {
     // Defines validation rules using Yup: all fields are required except those conditionally applied below
     validationSchema: Yup.object({
       name: Yup.string().required('Name is required'),
-      age: Yup.number().required('Age is required'),
+      age: Yup.number()
+        .typeError('Age must be a number')
+        .required('Age is required'),
       gender: Yup.string().required('Gender is required'),
       type: Yup.string().required('Type is required'),
 
-      // Conditional validation: only apply these rules when patient type is "inpatient" or "outpatient".
       admission_date: Yup.string().when('type', {
-        is: 'inpatient',
-        then: Yup.string().required('Admission date is required'),
+        is: (val) => val === 'inpatient',
+        then: () => Yup.string().required('Admission date is required'),
+        otherwise: () => Yup.string().nullable(),
       }),
+
       ward_number: Yup.number().when('type', {
-        is: 'inpatient',
-        then: Yup.number().required('Ward number is required'),
+        is: (val) => val === 'inpatient',
+        then: () =>
+          Yup.number()
+            .typeError('Ward number must be a number')
+            .required('Ward number is required'),
+        otherwise: () => Yup.number().nullable(),
       }),
+
       last_visit_date: Yup.string().when('type', {
-        is: 'outpatient',
-        then: Yup.string().required('Last visit date is required'),
+        is: (val) => val === 'outpatient',
+        then: () => Yup.string().required('Last visit date is required'),
+        otherwise: () => Yup.string().nullable(),
       }),
     }),
+
 
     // This function runs when the user submits the form. It first clears any existing messages.
     onSubmit: async (values, { resetForm }) => {
       setError('');
       setSuccess('');
-      
+
       // Calls the API to create a new patient.
       // Converts age and ward_number from string to number (formik stores form inputs as strings).
       try {
@@ -85,7 +95,7 @@ const PatientForm = () => {
           age: parseInt(values.age),
           ward_number: values.ward_number ? parseInt(values.ward_number) : undefined,
         });
-        
+
         // If the API call is successful, shows a success message, resets the form, and reloads the patient list.
         // If it fails, logs the error and sets an error message.
         setSuccess(`Patient "${newPatient.name}" added successfully!`);
@@ -97,7 +107,7 @@ const PatientForm = () => {
       }
     },
   });
-  
+
 
   // Prompts the user to confirm before deletion.
   const handleDelete = async (id) => {
@@ -120,7 +130,7 @@ const PatientForm = () => {
 
       {error && <p className="text-red-600">{error}</p>}
       {success && <p className="text-green-600">{success}</p>}
-      
+
 
       {/* The form uses
       <input> for name, age, admission_date, ward_number, and last_visit_date
@@ -214,7 +224,7 @@ const PatientForm = () => {
           <option value="outpatient">Outpatient</option>
         </select>
         {formik.touched.type && formik.errors.type && <p className="text-red-500 text-sm">{formik.errors.type}</p>}
-        
+
 
         {/*These inputs only appear if type is 'inpatient'.*/}
         {formik.values.type === 'inpatient' && (
@@ -288,7 +298,7 @@ const PatientForm = () => {
                 <td className="border px-3 py-2">
                   <button
                     onClick={() => handleDelete(patient.id)}
-                    className="text-red-500 hover:underline"
+                    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                   >
                     Delete
                   </button>
