@@ -3,7 +3,7 @@ from flask import Flask, jsonify, request, make_response
 from flask_restful import Resource
 from app.models import Patient, Outpatient, Inpatient
 from app import db
-
+from flask import Blueprint, request, jsonify
 
 class HomeResource(Resource):
     

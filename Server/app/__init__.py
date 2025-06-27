@@ -12,7 +12,9 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "*"}})
+    app.url_map.strict_slashes = False
+
 
     app.config.from_object('app.config.Config')
 
@@ -32,10 +34,10 @@ def create_app():
 
     # ✅ Add resources here
     api.add_resource(HomeResource, '/')
-    api.add_resource(Patient_List, '/patients')
+    api.add_resource(Patient_List, '/patients/')
     api.add_resource(Patient_By_ID, '/patients/<int:id>')
     api.add_resource(PatientMedicalRecords, '/patients/<int:id>/records')
-    api.add_resource(MedicalRecords, '/records')
+    api.add_resource(MedicalRecords, '/records/')
     api.add_resource(MedicalRecordByID, '/records/<int:id>')
 
 
@@ -47,7 +49,7 @@ def create_app():
 
         # Register blueprints
         app.register_blueprint(doctors.doctor_bp)
-        app.register_blueprint(patients.patient_bp)
+        
         app.register_blueprint(appointments.appointment_bp)
         #app.register_blueprint(departments.department_bp)
         #app.register_blueprint(medical_records.record_bp)

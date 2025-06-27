@@ -21,6 +21,7 @@ class Patient(db.Model, SerializerMixin):
     }
 
     medical_records = db.relationship('Medical_Record', back_populates='patient', cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', back_populates='patient', cascade='all, delete-orphan')
 
     serialize_rules = ('-medical_records.patient',)
 
@@ -82,7 +83,7 @@ class Doctor(db.Model, SerializerMixin):
     # Relationships
     #department = db.relationship('Department', back_populates='doctors')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
-    #medical_records = db.relationship('Medical_record', back_populates='doctor', cascade='all, delete-orphan')
+    medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
 
     serialize_rules = ('-appointments.doctor',) #'-department.doctors','-medical_records.doctor')
 
