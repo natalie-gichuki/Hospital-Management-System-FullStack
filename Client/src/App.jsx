@@ -1,5 +1,6 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+//import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 
 import Home from './pages/Home';
@@ -11,7 +12,7 @@ import Records from './pages/Records';
 
 const App = () => {
   return (
-    <Router>
+    
       <div className="flex">
         <Navbar />
         <div className="flex-1 min-h-screen bg-gray-50">
@@ -25,7 +26,7 @@ const App = () => {
           </Routes>
         </div>
       </div>
-    </Router>
+    
   );
 };
 
