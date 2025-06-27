@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { addAppointment } from "../services/AppointmentService";
 import { getDoctors } from "../services/DoctorService";
-import { getPatients } from "../services/PatientService";
+import { getAllPatients } from "../services/PatientService";
 
 function AppointmentForm({ onAdd }) {
   const [formData, setFormData] = useState({
@@ -15,7 +16,7 @@ function AppointmentForm({ onAdd }) {
 
   useEffect(() => {
     getDoctors().then(setDoctors);
-    getPatients().then(setPatients);
+    getAllPatients().then(setPatients);
   }, []);
 
   const handleChange = (e) => {
@@ -34,60 +35,63 @@ function AppointmentForm({ onAdd }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 border p-4 rounded mb-4">
-      <input
-        type="date"
-        name="date"
-        value={formData.date}
-        onChange={handleChange}
-        className="border p-2 w-full"
-        required
-      />
-      <input
-        type="text"
-        name="reason"
-        value={formData.reason}
-        onChange={handleChange}
-        placeholder="Reason for appointment"
-        className="border p-2 w-full"
-        required
-      />
-      <select
-        name="doctor_id"
-        value={formData.doctor_id}
-        onChange={handleChange}
-        className="border p-2 w-full"
-        required
-      >
-        <option value="">Select Doctor</option>
-        {doctors.map((doc) => (
-          <option key={doc.id} value={doc.id}>
-            {doc.name}
-          </option>
-        ))}
-      </select>
-      <select
-        name="patient_id"
-        value={formData.patient_id}
-        onChange={handleChange}
-        className="border p-2 w-full"
-        required
-      >
-        <option value="">Select Patient</option>
-        {patients.map((pat) => (
-          <option key={pat.id} value={pat.id}>
-            {pat.name}
-          </option>
-        ))}
-      </select>
-      <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">
-        Add Appointment
-      </button>
-    </form>
+    <div className="max-w-2xl mx-auto p-6 bg-white shadow rounded-xl mb-8">
+      <h2 className="text-2xl font-bold mb-4">Add Appointment</h2>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <input
+          type="date"
+          name="date"
+          value={formData.date}
+          onChange={handleChange}
+          className="w-full border px-3 py-2 rounded"
+          required
+        />
+        <input
+          type="text"
+          name="reason"
+          value={formData.reason}
+          onChange={handleChange}
+          placeholder="Reason for appointment"
+          className="w-full border px-3 py-2 rounded"
+          required
+        />
+        <select
+          name="doctor_id"
+          value={formData.doctor_id}
+          onChange={handleChange}
+          className="w-full border px-3 py-2 rounded"
+          required
+        >
+          <option value="">Select Doctor</option>
+          {doctors.map((doc) => (
+            <option key={doc.id} value={doc.id}>
+              {doc.name}
+            </option>
+          ))}
+        </select>
+        <select
+          name="patient_id"
+          value={formData.patient_id}
+          onChange={handleChange}
+          className="w-full border px-3 py-2 rounded"
+          required
+        >
+          <option value="">Select Patient</option>
+          {patients.map((pat) => (
+            <option key={pat.id} value={pat.id}>
+              {pat.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          Add Appointment
+        </button>
+      </form>
+    </div>
   );
 }
 
 export default AppointmentForm;
-// This component allows users to create a new appointment by selecting a date, reason, doctor, and patient.
-// It fetches the list of doctors and patients from the server and submits the appointment data to the server when the form is submitted.
-// The `onAdd` prop is a callback function that gets
