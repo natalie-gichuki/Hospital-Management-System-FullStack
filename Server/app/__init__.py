@@ -28,6 +28,7 @@ def create_app():
     api.init_app(app)
 
     # === RESTX Namespaces ===
+    # Import namespaces, assuming these are flask_restx.Namespace objects
     from app.routes.auth import auth_ns
     from app.routes.patients import patient_ns
     from app.routes.doctors import doctor_ns
@@ -35,6 +36,7 @@ def create_app():
     from app.routes.appointments import appointments_ns
     from app.routes.medical_records import medical_ns
 
+    # Register namespaces with the API
     api.add_namespace(auth_ns, path="/auth")
     api.add_namespace(patient_ns, path="/patients")
     api.add_namespace(doctor_ns, path="/doctors")
@@ -44,6 +46,8 @@ def create_app():
 
     with app.app_context():
         from . import models
-        # db.create_all()  # Only if you’re not using flask db migrate/upgrade
+        db.create_all()  # Uncomment this line if you want Flask-SQLAlchemy to create tables
+                          # on app startup. However, it's generally recommended to use Flask-Migrate
+                          # for schema management in production environments (flask db migrate/upgrade).
 
     return app

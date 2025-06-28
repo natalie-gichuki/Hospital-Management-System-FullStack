@@ -2,26 +2,81 @@
 from app import db
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
-from sqlalchemy import CheckConstraint # Not used in current validates, but good to have if needed for column constraints
-from datetime import datetime # Import datetime for date validations and default values
+from sqlalchemy import CheckConstraint # Can be used for more complex column-level constraints if needed
+from datetime import datetime, date # Import both datetime and date for appropriate column types
+from werkzeug.security import generate_password_hash, check_password_hash # For password hashing
+
+
+class User(db.Model, SerializerMixin):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    _password_hash = db.Column(db.String(128), nullable=False) # Stores the hashed password
+    role = db.Column(db.String(50), nullable=False) # e.g., 'doctor', 'patient', 'admin'
+
+    # Relationships (one-to-one with Doctor and Patient profiles)
+    # uselist=False indicates a one-to-one relationship
+    doctor_profile = db.relationship('Doctor', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    patient_profile = db.relationship('Patient', back_populates='user', uselist=False, cascade='all, delete-orphan')
+
+    # Do not serialize the password hash for security
+    serialize_rules = ('-_password_hash',)
+
+    # Getter for password (raises AttributeError to prevent direct access)
+    @property
+    def password(self):
+        raise AttributeError('password is not a readable attribute')
+
+    # Setter for password (hashes the password before storing)
+    @password.setter
+    def password(self, password):
+        self._password_hash = generate_password_hash(password)
+
+    # Method to verify password
+    def verify_password(self, password):
+        return check_password_hash(self._password_hash, password)
+
+    # Validations for User model fields
+    @validates('username')
+    def validate_username(self, key, username):
+        if not username or not isinstance(username, str) or len(username.strip()) == 0:
+            raise ValueError("Username must be a non-empty string.")
+        # Optional: Check for uniqueness at the validation level (unique=True handles it at DB level)
+        # if User.query.filter_by(username=username).first():
+        #     raise ValueError("Username already exists.")
+        return username.strip()
+
+    @validates('role')
+    def validate_role(self, key, role):
+        normalized_role = role.lower().strip()
+        if normalized_role not in ['doctor', 'patient', 'admin']:
+            raise ValueError("Role must be 'doctor', 'patient', or 'admin'.")
+        return normalized_role
+
+    def __repr__(self):
+        return f"<User {self.id}: {self.username} (Role: {self.role})>"
 
 
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # Added length for string
+    name = db.Column(db.String(100), nullable=False)
     age = db.Column(db.Integer, nullable=False)
-    gender = db.Column(db.String(50), nullable=False) # Added length for string
-    # 'type' is the discriminator column for polymorphic loading
-    type = db.Column(db.String(50), nullable=False) # Added length for string
+    gender = db.Column(db.String(50), nullable=False)
+    # 'type' is the discriminator column for polymorphic loading in single table inheritance
+    type = db.Column(db.String(50), nullable=False)
+
+    # Foreign key to User model for one-to-one relationship
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
+    user = db.relationship('User', back_populates='patient_profile')
 
     __mapper_args__ = {
         'polymorphic_identity': 'patient',
         'polymorphic_on': type
     }
 
-    # Relationships
+    # Relationships to other models
     medical_records = db.relationship('Medical_Record', back_populates='patient', cascade='all, delete-orphan')
     appointments = db.relationship('Appointment', back_populates='patient', cascade='all, delete-orphan')
 
@@ -29,6 +84,7 @@ class Patient(db.Model, SerializerMixin):
     serialize_rules = (
         '-medical_records.patient',  # Do not serialize patient from within medical_records
         '-appointments.patient',     # Do not serialize patient from within appointments
+        '-user.patient_profile',     # Do not serialize patient_profile from User
     )
 
     # Data validation using SQLAlchemy's @validates decorator
@@ -53,7 +109,6 @@ class Patient(db.Model, SerializerMixin):
         return normalized_gender
 
     def __repr__(self):
-        # Representation for easier debugging
         return f"<Patient {self.id}: {self.name} (Age: {self.age}, Gender: {self.gender}, Type: {self.type})>"
 
 
@@ -70,6 +125,7 @@ class Inpatient(Patient):
         'polymorphic_identity': 'inpatient',
     }
 
+    # Validations specific to Inpatient
     @validates('ward_number')
     def validate_ward_number(self, key, ward_number):
         if not isinstance(ward_number, int) or ward_number <= 0:
@@ -78,9 +134,8 @@ class Inpatient(Patient):
 
     @validates('admission_date')
     def validate_admission_date(self, key, admission_date):
-        if not isinstance(admission_date, (datetime, type(None))): # Allow None if column was nullable, but it's not here
+        if not isinstance(admission_date, date): # Use date, not datetime for db.Date columns
             raise ValueError("Admission date must be a valid date object.")
-        # Optional: Add logic to ensure date is not in the future, etc.
         return admission_date
 
     def __repr__(self):
@@ -99,11 +154,11 @@ class Outpatient(Patient):
         'polymorphic_identity': 'outpatient',
     }
 
+    # Validations specific to Outpatient
     @validates('last_visit_date')
     def validate_last_visit_date(self, key, last_visit_date):
-        if not isinstance(last_visit_date, (datetime, type(None))): # Allow None if column was nullable
+        if not isinstance(last_visit_date, date): # Use date, not datetime for db.Date columns
             raise ValueError("Last visit date must be a valid date object.")
-        # Optional: Add logic to ensure date is not in the future, etc.
         return last_visit_date
 
     def __repr__(self):
@@ -118,21 +173,27 @@ class Doctor(db.Model, SerializerMixin):
     specialization = db.Column(db.String(100), nullable=False)
     # Contact can be phone or email; added unique constraint for contact
     contact = db.Column(db.String(100), unique=True, nullable=True) # Made nullable as contact might not always be available
+
     # Foreign key to Department
-    department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True) # Made nullable for doctors not yet assigned
+    department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True)
+    # Foreign key to User model for one-to-one relationship
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
 
     # Relationships
     department = db.relationship('Department', back_populates='doctors')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
     medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
+    user = db.relationship('User', back_populates='doctor_profile') # Relationship to User model
 
     # Serialization rules to prevent circular references
     serialize_rules = (
         '-appointments.doctor',
         '-medical_records.doctor',
-        '-department.doctors' # Prevent endless loop if Department also serializes its doctors
+        '-department.doctors', # Prevent endless loop if Department also serializes its doctors
+        '-user.doctor_profile', # Do not serialize doctor_profile from User
     )
 
+    # Validations for Doctor model fields
     @validates('name')
     def validate_name(self, key, name):
         if not name or not isinstance(name, str) or len(name.strip()) == 0:
@@ -147,11 +208,13 @@ class Doctor(db.Model, SerializerMixin):
 
     @validates('contact')
     def validate_contact(self, key, contact):
-        if contact is not None and not isinstance(contact, str):
-            raise ValueError("Contact must be a string or None.")
-        if contact and len(contact.strip()) < 5: # Basic length check
-             raise ValueError("Contact information appears too short or invalid.")
-        return contact.strip() if contact else None
+        if contact is not None:
+            if not isinstance(contact, str):
+                raise ValueError("Contact must be a string or None.")
+            if len(contact.strip()) < 5: # Basic length check
+                 raise ValueError("Contact information appears too short or invalid.")
+            return contact.strip()
+        return None
 
     def __repr__(self):
         return f"<Doctor {self.id}: {self.name} ({self.specialization})>"
@@ -170,13 +233,15 @@ class Department(db.Model, SerializerMixin):
     # One-to-many: Department has many Doctors
     doctors = db.relationship('Doctor', back_populates='department', cascade='all, delete-orphan')
     # One-to-one: Department has one Head Doctor (explicitly linked by foreign_keys)
-    headdoctor = db.relationship('Doctor', foreign_keys=[headdoctor_id], post_update=True) # post_update to handle potential circular dependency on updates
+    # post_update=True handles potential circular dependency on updates (e.g., if headdoctor also has a department_id)
+    headdoctor = db.relationship('Doctor', foreign_keys=[headdoctor_id], post_update=True)
 
     serialize_rules = (
         '-doctors.department',      # Prevent circular reference: doctors should not serialize their department back
         '-headdoctor.department'    # Prevent circular reference for the head doctor relationship
     )
 
+    # Validations for Department model fields
     @validates('name')
     def validate_name(self, key, name):
         if not name or not isinstance(name, str) or len(name.strip()) == 0:
@@ -200,6 +265,7 @@ class Appointment(db.Model, SerializerMixin):
     # Using db.DateTime for precise date and time of appointment
     date = db.Column(db.DateTime, nullable=False)
     reason = db.Column(db.String(255), nullable=False) # Added length for reason
+    status = db.Column(db.String(50), nullable=False, default='Scheduled') # Added status
 
     # Foreign keys
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
@@ -214,14 +280,15 @@ class Appointment(db.Model, SerializerMixin):
         '-doctor.appointments'   # Prevent circular reference for doctor's appointments
     )
 
+    # Validations for Appointment model fields
     @validates('date')
-    def validate_date(self, key, date):
-        if not isinstance(date, datetime):
+    def validate_date(self, key, date_obj): # Renamed 'date' parameter to avoid conflict with column name
+        if not isinstance(date_obj, datetime):
             raise ValueError("Appointment date must be a valid datetime object.")
         # Example: Ensure appointment is not in the past
-        # if date < datetime.now():
+        # if date_obj < datetime.now():
         #     raise ValueError("Appointment date cannot be in the past.")
-        return date
+        return date_obj
 
     @validates('reason')
     def validate_reason(self, key, reason):
@@ -229,16 +296,23 @@ class Appointment(db.Model, SerializerMixin):
             raise ValueError("Reason must be a descriptive string of at least 5 characters.")
         return reason.strip()
 
+    @validates('status')
+    def validate_status(self, key, status):
+        normalized_status = status.lower().strip()
+        if normalized_status not in ['scheduled', 'completed', 'cancelled']:
+            raise ValueError("Status must be 'Scheduled', 'Completed', or 'Cancelled'.")
+        return normalized_status.capitalize() # Store with first letter capitalized
+
     def __repr__(self):
-        return f"<Appointment {self.id} on {self.date.strftime('%Y-%m-%d %H:%M')} for Patient {self.patient_id} with Doctor {self.doctor_id}>"
+        return f"<Appointment {self.id} on {self.date.strftime('%Y-%m-%d %H:%M')} for Patient {self.patient_id} with Doctor {self.doctor_id} (Status: {self.status})>"
 
 
 class Medical_Record(db.Model, SerializerMixin):
     __tablename__ = 'medical_records'
 
     id = db.Column(db.Integer, primary_key=True)
-    diagnosis = db.Column(db.String(255), nullable=False) # Added length
-    treatment = db.Column(db.String(255), nullable=False) # Added length
+    diagnosis = db.Column(db.String(255), nullable=False)
+    treatment = db.Column(db.String(255), nullable=False)
     date = db.Column(db.DateTime, nullable=False) # Using db.DateTime for recording medical record date/time
 
     # Foreign keys
@@ -254,6 +328,7 @@ class Medical_Record(db.Model, SerializerMixin):
         '-doctor.medical_records'   # Prevent circular reference for doctor's medical records
     )
 
+    # Validations for Medical_Record model fields
     @validates('diagnosis')
     def validate_diagnosis(self, key, diagnosis):
         if not diagnosis or not isinstance(diagnosis, str) or len(diagnosis.strip()) < 5:
@@ -267,10 +342,10 @@ class Medical_Record(db.Model, SerializerMixin):
         return treatment.strip()
 
     @validates('date')
-    def validate_date(self, key, date):
-        if not isinstance(date, datetime):
+    def validate_date(self, key, date_obj): # Renamed 'date' parameter
+        if not isinstance(date_obj, datetime):
             raise ValueError("Medical record date must be a valid datetime object.")
-        return date
+        return date_obj
 
     def __repr__(self):
         return f"<Medical Record {self.id} for Patient {self.patient_id} by Doctor {self.doctor_id} on {self.date.strftime('%Y-%m-%d %H:%M')}>"
