@@ -16,6 +16,18 @@ export const addAppointment = async (appointmentData) => {
   return res.json();
 };
 
+export const patchAppointment = async (id, appointmentData) => {
+  const res = await fetch(`${BASE_URL}${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(appointmentData),
+  });
+
+  if (!res.ok) throw new Error("Failed to update appointment");
+  return res.json();
+};
+
+
 export const deleteAppointment = async (id) => {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'DELETE',
@@ -23,3 +35,5 @@ export const deleteAppointment = async (id) => {
   if (!res.ok) throw new Error("Failed to delete appointment");
   return true;
 };
+
+
