@@ -51,7 +51,13 @@ class Medical_Record(db.Model, SerializerMixin):
     __tablename__ = 'medical_records'
 
     
-    serialize_rules = ('-patient.medical_records', '-doctor.medical_records')
+    serialize_rules = (
+    '-patient.medical_records',
+    '-doctor.medical_records',
+    '-doctor.department',
+    '-doctor.appointments',
+)
+
 
     id = db.Column(db.Integer, primary_key = True)
     diagnosis = db.Column(db.String, nullable = False)
@@ -78,12 +84,17 @@ class Doctor(db.Model, SerializerMixin):
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
 
     # Relationships
-    department = db.relationship('Department', back_populates='doctors')
+    department = db.relationship('Department', back_populates='doctors', foreign_keys=[department_id])
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
     medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
 
-    serialize_rules = ('-appointments.doctor', '-department.doctors','-medical_records.doctor')
-
+    serialize_rules = (
+    '-appointments.doctor',
+    '-department.doctors',
+    '-department.headdoctor',
+    '-medical_records.doctor',
+    '-medical_records.patient',
+)
     def __repr__(self):
         return f"<Doctor {self.name}>"
 
@@ -131,10 +142,14 @@ class Department(db.Model, SerializerMixin):
 
     # Serialization rules to avoid circular references in JSON output
     serialize_rules = (
-        '-doctors.department',        # Prevent infinite loop
-        '-headdoctor.department',     # Prevent infinite loop
-        '-headdoctor.user.password',  # Hide sensitive field if included
-    )
+    '-doctors.department',
+    '-doctors.medical_records',
+    '-doctors.appointments',
+    '-headdoctor.department',
+    '-headdoctor.appointments',
+    '-headdoctor.medical_records',
+)
+
 
     # === Class-level utility methods ===
 

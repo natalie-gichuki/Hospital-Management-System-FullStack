@@ -12,7 +12,7 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173"], supports_credentials=True)
     app.url_map.strict_slashes = False
 
 
@@ -30,6 +30,7 @@ def create_app():
 
     from .routes.patients import HomeResource, Patient_List, Patient_By_ID, PatientMedicalRecords
     from .routes.medical_records import MedicalRecords, MedicalRecordByID
+    from app.routes.departments import DepartmentByID, DepartmentList
 
 
     # ✅ Add resources here
@@ -39,6 +40,8 @@ def create_app():
     api.add_resource(PatientMedicalRecords, '/patients/<int:id>/records')
     api.add_resource(MedicalRecords, '/records/')
     api.add_resource(MedicalRecordByID, '/records/<int:id>')
+    api.add_resource(DepartmentList, '/departments/')
+    api.add_resource(DepartmentByID, '/departments/<int:id>')
 
 
 
@@ -56,6 +59,8 @@ def create_app():
 
         db.create_all()
           #
+
+    
 
 
     return app
