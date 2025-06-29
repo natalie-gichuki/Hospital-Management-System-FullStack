@@ -5,23 +5,17 @@ from sqlalchemy import CheckConstraint
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     _password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(50), nullable=False) # e.g., 'doctor', 'patient', 'admin'
+    role = db.Column(db.String(50), nullable=False)
 
     doctor_profile = db.relationship('Doctor', back_populates='user', uselist=False, cascade='all, delete-orphan')
     patient_profile = db.relationship('Patient', back_populates='user', uselist=False, cascade='all, delete-orphan')
 
-    # Keep this one, comment out others
-    serialize_rules = (
-        '-_password_hash',
-        # '-doctor_profile.user',  # <--- TEMPORARILY COMMENT OUT THIS LINE
-        # '-patient_profile.user', # <--- TEMPORARILY COMMENT OUT THIS LINE
-    )
+    serialize_rules = ('-_password_hash',)
 
     @property
     def password(self):
@@ -58,7 +52,7 @@ class Patient(db.Model, SerializerMixin):
     name = db.Column(db.String(100), nullable=False)
     age = db.Column(db.Integer, nullable=False)
     gender = db.Column(db.String(50), nullable=False)
-    type = db.Column(db.String(50), nullable=False) # Discriminator for polymorphic loading
+    type = db.Column(db.String(50), nullable=False)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
     user = db.relationship('User', back_populates='patient_profile')
@@ -71,12 +65,7 @@ class Patient(db.Model, SerializerMixin):
     medical_records = db.relationship('Medical_Record', back_populates='patient', cascade='all, delete-orphan')
     appointments = db.relationship('Appointment', back_populates='patient', cascade='all, delete-orphan')
 
-    # TEMPORARILY COMMENT OUT ALL THESE LINES
-    serialize_rules = (
-        # '-medical_records.patient',
-        # '-appointments.patient',
-        # '-user.patient_profile',
-    )
+    serialize_rules = ('-medical_records.patient', '-appointments.patient', '-user.patient_profile')
 
     @validates('name')
     def validate_name(self, key, name):
@@ -112,8 +101,6 @@ class Inpatient(Patient):
         'polymorphic_identity': 'inpatient',
     }
 
-    # No new relationships introduced, so no new serialize_rules needed here.
-
     @validates('ward_number')
     def validate_ward_number(self, key, ward_number):
         if not isinstance(ward_number, int) or ward_number <= 0:
@@ -139,8 +126,6 @@ class Outpatient(Patient):
     __mapper_args__ = {
         'polymorphic_identity': 'outpatient',
     }
-    
-    # No new relationships introduced, so no new serialize_rules needed here.
 
     @validates('last_visit_date')
     def validate_last_visit_date(self, key, last_visit_date):
@@ -163,23 +148,12 @@ class Doctor(db.Model, SerializerMixin):
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True, nullable=False)
 
-    # Relationships that Doctor participates in
-    department = db.relationship(
-        'Department',
-        back_populates='doctors',
-        foreign_keys=[department_id]
-    )
+    department = db.relationship('Department', back_populates='doctors', foreign_keys=[department_id])
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
     medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
     user = db.relationship('User', back_populates='doctor_profile')
 
-    # TEMPORARILY COMMENT OUT ALL THESE LINES
-    serialize_rules = (
-        # '-appointments.doctor',
-        # '-medical_records.doctor',
-        # '-department.doctors', # This is critical for Department-Doctor list recursion
-        # '-user.doctor_profile',
-    )
+    serialize_rules = ('-appointments.doctor', '-medical_records.doctor', '-department.doctors', '-user.doctor_profile')
 
     @validates('name')
     def validate_name(self, key, name):
@@ -199,7 +173,7 @@ class Doctor(db.Model, SerializerMixin):
             if not isinstance(contact, str):
                 raise ValueError("Contact must be a string or None.")
             if len(contact.strip()) < 5:
-                 raise ValueError("Contact information appears too short or invalid.")
+                raise ValueError("Contact information appears too short or invalid.")
             return contact.strip()
         return None
 
@@ -215,25 +189,10 @@ class Department(db.Model, SerializerMixin):
     specialty = db.Column(db.String(100), nullable=False)
     headdoctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), unique=True, nullable=True)
 
-    # Relationship to a list of Doctors (via Doctor.department)
-    doctors = db.relationship(
-        'Doctor',
-        back_populates='department',
-        cascade='all, delete-orphan',
-        foreign_keys='Doctor.department_id' # Explicitly linking to Doctor.department_id
-    )
-    # Relationship to a single Doctor (headdoctor)
-    headdoctor = db.relationship(
-        'Doctor',
-        foreign_keys=[headdoctor_id], # Explicitly linking to headdoctor_id
-        post_update=True # Allows updating a doctor's department if they are a head doctor
-    )
+    doctors = db.relationship('Doctor', back_populates='department', cascade='all, delete-orphan', foreign_keys='Doctor.department_id')
+    headdoctor = db.relationship('Doctor', foreign_keys=[headdoctor_id], post_update=True)
 
-    # TEMPORARILY COMMENT OUT ALL THESE LINES
-    serialize_rules = (
-        # '-doctors.department',
-        # '-headdoctor.department',
-    )
+    serialize_rules = ('-doctors.department', '-headdoctor.department')
 
     def get_all(session):
         return session.query(Department).all()
@@ -279,11 +238,7 @@ class Appointment(db.Model, SerializerMixin):
     patient = db.relationship("Patient", back_populates="appointments")
     doctor = db.relationship("Doctor", back_populates="appointments")
 
-    # TEMPORARILY COMMENT OUT ALL THESE LINES
-    serialize_rules = (
-        # '-patient.appointments',
-        # '-doctor.appointments'
-    )
+    serialize_rules = ('-patient.appointments', '-doctor.appointments')
 
     @validates('date')
     def validate_date(self, key, date_obj):
@@ -322,11 +277,7 @@ class Medical_Record(db.Model, SerializerMixin):
     patient = db.relationship('Patient', back_populates='medical_records')
     doctor = db.relationship('Doctor', back_populates='medical_records')
 
-    # TEMPORARILY COMMENT OUT ALL THESE LINES
-    serialize_rules = (
-        # '-patient.medical_records',
-        # '-doctor.medical_records'
-    )
+    serialize_rules = ('-patient.medical_records', '-doctor.medical_records')
 
     @validates('diagnosis')
     def validate_diagnosis(self, key, diagnosis):

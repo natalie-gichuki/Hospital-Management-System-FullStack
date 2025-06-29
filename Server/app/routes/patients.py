@@ -2,33 +2,29 @@ from flask import request
 from flask_restx import Namespace, Resource, fields
 from app.models import Patient
 from app import db
-# Removed: from app.routes.auth import role_required # <--- REMOVED THIS IMPORT
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime
-# Removed: from flask_jwt_extended import current_user # <--- REMOVED THIS IMPORT
 
 patient_ns = Namespace('patients', description="Patient operations")
 
 # === Swagger Models ===
 patient_model = patient_ns.model('Patient', {
     'name': fields.String(required=True, example="John Doe"),
-    'date_of_birth': fields.String(required=True, example="1990-01-01"),
-    'contact_number': fields.String(required=True, example="+254712345678"),
-    'user_id': fields.Integer(required=False, example=5),
+    'age': fields.Integer(required=True, example=30),
+    'gender': fields.String(required=True, example="male"),
+    'user_id': fields.Integer(required=True, example=5)
 })
 
 update_patient_model = patient_ns.model('UpdatePatient', {
     'name': fields.String(example="Jane Doe"),
-    'date_of_birth': fields.String(example="1992-02-02"),
-    'contact_number': fields.String(example="+254700000000"),
-    'user_id': fields.Integer(example=7),
+    'age': fields.Integer(example=35),
+    'gender': fields.String(example="female"),
+    'user_id': fields.Integer(example=7)
 })
 
 
 @patient_ns.route('/')
 class PatientList(Resource):
 
-    # Removed: @role_required(['admin', 'doctor', 'department_manager']) # <--- REMOVED THIS DECORATOR
     @patient_ns.response(200, 'List of patients')
     @patient_ns.marshal_list_with(patient_model)
     def get(self):
@@ -40,46 +36,41 @@ class PatientList(Resource):
             db.session.rollback()
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin', 'department_manager', 'doctor']) # <--- REMOVED THIS DECORATOR
     @patient_ns.expect(patient_model)
     @patient_ns.response(201, 'Patient created')
     @patient_ns.response(400, 'Invalid input')
-    @patient_ns.response(409, 'Duplicate contact number')
     @patient_ns.marshal_with(patient_model, code=201)
     def post(self):
         """Create a new patient"""
         try:
             data = request.get_json()
+
             name = data.get('name')
-            dob_str = data.get('date_of_birth')
-            contact_number = data.get('contact_number')
+            age = data.get('age')
+            gender = data.get('gender')
             user_id = data.get('user_id')
 
-            if not name or not dob_str or not contact_number:
-                return {'error': 'Name, date_of_birth, and contact_number are required'}, 400
+            if not name or age is None or not gender:
+                return {'error': 'Name, age, and gender are required'}, 400
 
-            try:
-                date_of_birth = datetime.strptime(dob_str, '%Y-%m-%d').date()
-            except ValueError:
-                return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
-
-            # The check for duplicate contact number is a good database-level constraint
-            # and doesn't rely on JWT, so it remains.
-            if Patient.query.filter_by(contact_number=contact_number).first():
-                return {'error': 'Patient with this contact number already exists'}, 409
+            normalized_gender = gender.lower().strip()
+            if normalized_gender not in ['male', 'female', 'other']:
+                return {'error': 'Gender must be male, female, or other'}, 400
 
             new_patient = Patient(
-                name=name,
-                date_of_birth=date_of_birth,
-                contact_number=contact_number,
+                name=name.strip(),
+                age=age,
+                gender=normalized_gender,
                 user_id=user_id
             )
+
             db.session.add(new_patient)
             db.session.commit()
             return new_patient.to_dict(), 201
+
         except IntegrityError:
             db.session.rollback()
-            return {'error': 'Integrity error, e.g., duplicate contact number or user_id'}, 409
+            return {'error': 'User ID must be unique or already in use'}, 409
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 500
@@ -88,7 +79,6 @@ class PatientList(Resource):
 @patient_ns.route('/<int:id>')
 class PatientByID(Resource):
 
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     @patient_ns.response(200, 'Patient details')
     @patient_ns.response(404, 'Patient not found')
     @patient_ns.marshal_with(patient_model)
@@ -99,19 +89,14 @@ class PatientByID(Resource):
             if not patient:
                 return {'error': 'Patient not found'}, 404
 
-            # Removed current_user-based access check as there is no JWT
-            # if current_user.role == 'patient' and current_user.patient_profile and current_user.patient_profile.id != patient.id:
-            #     return {'msg': 'Access denied: Patients can only view their own records'}, 403
-
             return patient.to_dict(), 200
         except Exception as e:
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin', 'department_manager', 'doctor']) # <--- REMOVED THIS DECORATOR
     @patient_ns.expect(update_patient_model)
     @patient_ns.response(200, 'Patient updated')
     @patient_ns.response(404, 'Patient not found')
-    @patient_ns.response(409, 'Conflict: duplicate contact')
+    @patient_ns.response(409, 'Conflict: duplicate user ID')
     @patient_ns.marshal_with(patient_model)
     def patch(self, id):
         """Update a patient by ID"""
@@ -123,25 +108,27 @@ class PatientByID(Resource):
             data = request.get_json()
 
             if 'name' in data:
-                patient.name = data['name']
+                patient.name = data['name'].strip()
 
-            if 'date_of_birth' in data:
-                try:
-                    patient.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
-                except ValueError:
-                    return {'error': 'Invalid date_of_birth format. Use YYYY-MM-DD'}, 400
+            if 'age' in data:
+                patient.age = data['age']
 
-            if 'contact_number' in data:
-                existing = Patient.query.filter_by(contact_number=data['contact_number']).first()
-                if existing and existing.id != id:
-                    return {'error': 'Patient with this contact number already exists'}, 409
-                patient.contact_number = data['contact_number']
+            if 'gender' in data:
+                gender = data['gender'].lower().strip()
+                if gender not in ['male', 'female', 'other']:
+                    return {'error': 'Invalid gender'}, 400
+                patient.gender = gender
 
             if 'user_id' in data:
+                # Ensure no one else is using this user_id
+                existing = Patient.query.filter_by(user_id=data['user_id']).first()
+                if existing and existing.id != id:
+                    return {'error': 'User ID already in use'}, 409
                 patient.user_id = data['user_id']
 
             db.session.commit()
             return patient.to_dict(), 200
+
         except IntegrityError:
             db.session.rollback()
             return {'error': 'Integrity error'}, 409
@@ -149,7 +136,6 @@ class PatientByID(Resource):
             db.session.rollback()
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin']) # <--- REMOVED THIS DECORATOR
     @patient_ns.response(204, 'Patient deleted')
     @patient_ns.response(404, 'Patient not found')
     def delete(self, id):

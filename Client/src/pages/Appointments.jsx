@@ -1,23 +1,35 @@
-
 import { useEffect, useState } from "react";
 import { getAppointments, deleteAppointment } from "../services/AppointmentService";
 import AppointmentForm from "../components/AppointmentForm";
 
 function Appointments() {
   const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    getAppointments().then(setAppointments).catch(console.error);
+    fetchAppointments();
   }, []);
 
+  const fetchAppointments = async () => {
+    try {
+      const data = await getAppointments();
+      setAppointments(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAdd = (appt) => {
-    setAppointments([...appointments, appt]);
+    setAppointments((prev) => [...prev, appt]);
   };
 
   const handleDelete = async (id) => {
     try {
       await deleteAppointment(id);
-      setAppointments(appointments.filter((a) => a.id !== id));
+      setAppointments((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       console.error(err.message);
     }
@@ -31,7 +43,11 @@ function Appointments() {
 
         <h3 className="text-3xl font-semibold mt-6 mb-2">All Appointments</h3>
 
-        {appointments.length === 0 ? (
+        {loading ? (
+          <p className="text-gray-600">Loading...</p>
+        ) : error ? (
+          <p className="text-red-600">Error: {error}</p>
+        ) : appointments.length === 0 ? (
           <p className="mt-4 text-gray-600">No appointments found.</p>
         ) : (
           <table className="w-full table-auto border-collapse border border-gray-300">

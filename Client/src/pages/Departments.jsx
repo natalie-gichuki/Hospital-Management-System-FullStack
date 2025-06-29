@@ -20,7 +20,7 @@ const DepartmentsPage = () => {
             setDepartments(data);
             setError(null);
         } catch (err) {
-            setError(err.message);
+            setError("Failed to fetch departments: " + err.message);
         } finally {
             setIsLoading(false);
         }
@@ -55,8 +55,7 @@ const DepartmentsPage = () => {
             fetchDepartments();
             setIsFormOpen(false);
         } catch (err) {
-            console.error("Failed to save department:", err);
-            // Optionally, show an error in the form
+            setError("Failed to save department: " + err.message);
         }
     };
 
@@ -66,7 +65,7 @@ const DepartmentsPage = () => {
             fetchDepartments();
             setIsConfirmOpen(false);
         } catch (err) {
-            console.error("Failed to delete department:", err);
+            setError("Failed to delete department: " + err.message);
         }
     };
 

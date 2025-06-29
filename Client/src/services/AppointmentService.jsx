@@ -1,13 +1,5 @@
-import api from './Api';
+import api from './api';
 
-export const getAppointments = async () => {
-  return await api.get('/appointments/');
-};
-
-export const addAppointment = async (appointmentData) => {
-  return await api.post('/appointments/', appointmentData);
-};
-
-export const deleteAppointment = async (id) => {
-  return await api.delete(`/appointments/${id}`);
-};
+export const getAppointments = async () => await api.get('/appointments/');
+export const addAppointment = async (data) => await api.post('/appointments/', data);
+export const deleteAppointment = async (id) => await api.delete(`/appointments/${id}`);

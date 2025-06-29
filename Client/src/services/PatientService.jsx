@@ -1,27 +1,7 @@
-// services/PatientService.js
-import api from './Api';
+import api from './api';
 
-export const getAllPatients = async () => {
-  const response = await api.get('/patients/');
-  return response;
-};
-
-export const getPatientById = async (id) => {
-  const response = await api.get(`/patients/${id}`);
-  return response;
-};
-
-export const createPatient = async (patientData) => {
-  const response = await api.post('/patients/', patientData);
-  return response;
-};
-
-export const deletePatient = async (id) => {
-  const response = await api.delete(`/patients/${id}`);
-  return response;
-};
-
-export const getPatientRecords = async (id) => {
-  const response = await api.get(`/patients/${id}/records`);
-  return response;
-};
+export const getAllPatients = async () => await api.get('/patients/');
+export const getPatientById = async (id) => await api.get(`/patients/${id}`);
+export const createPatient = async (data) => await api.post('/patients/', data);
+export const deletePatient = async (id) => await api.delete(`/patients/${id}`);
+export const getPatientRecords = async (id) => await api.get(`/patients/${id}/records`);

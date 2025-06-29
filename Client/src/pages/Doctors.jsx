@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { getDoctors, addDoctor, deleteDoctor } from "../services/DoctorService";
 import DoctorCard from "../components/DoctorCard";
@@ -6,28 +5,40 @@ import DoctorCard from "../components/DoctorCard";
 function Doctors() {
   const [doctors, setDoctors] = useState([]);
   const [newDoctor, setNewDoctor] = useState({ name: "", specialization: "", contact: "" });
+  const [error, setError] = useState(null);
+
+  const fetchDoctors = async () => {
+    try {
+      const data = await getDoctors();
+      setDoctors(data);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load doctors: " + err.message);
+    }
+  };
 
   useEffect(() => {
-    getDoctors().then(setDoctors).catch(console.error);
+    fetchDoctors();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const created = await addDoctor(newDoctor);
-      setDoctors([...doctors, created]);
+      setDoctors((prev) => [...prev, created]);
       setNewDoctor({ name: "", specialization: "", contact: "" });
+      setError(null);
     } catch (error) {
-      console.error(error.message);
+      setError("Failed to add doctor: " + error.message);
     }
   };
 
   const handleDelete = async (id) => {
     try {
       await deleteDoctor(id);
-      setDoctors(doctors.filter(d => d.id !== id));
+      setDoctors((prev) => prev.filter((d) => d.id !== id));
     } catch (error) {
-      console.error(error.message);
+      setError("Failed to delete doctor: " + error.message);
     }
   };
 
@@ -42,7 +53,7 @@ function Doctors() {
             placeholder="Doctor's Name"
             value={newDoctor.name}
             onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
-            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded p-3"
             required
           />
           <input
@@ -50,16 +61,15 @@ function Doctors() {
             placeholder="Specialization"
             value={newDoctor.specialization}
             onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
-            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded p-3"
             required
           />
           <input
             type="text"
-            name="contact"
             placeholder="Contact Info"
             value={newDoctor.contact}
             onChange={(e) => setNewDoctor({ ...newDoctor, contact: e.target.value })}
-            className="w-full border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded p-3"
             required
           />
           <button
@@ -69,6 +79,8 @@ function Doctors() {
             Add Doctor
           </button>
         </form>
+
+        {error && <p className="mt-4 text-red-600 font-semibold">{error}</p>}
       </div>
 
       <div className="max-w-6xl mx-auto mt-10 grid md:grid-cols-2 lg:grid-cols-3 gap-6">

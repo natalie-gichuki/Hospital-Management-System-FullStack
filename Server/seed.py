@@ -2,7 +2,6 @@ from app import db, create_app
 from app.models import User, Doctor, Department, Patient, Inpatient, Outpatient, Appointment, Medical_Record
 from faker import Faker
 from datetime import datetime, timezone, timedelta
-datetime.now(timezone.utc)
 import random
 from random import choice as rc
 
@@ -14,7 +13,7 @@ def seed_data():
         print("Clearing existing data...")
         db.drop_all()
         db.create_all()
-        print("Database cleared and recreated.")
+        print("✅ Database cleared and recreated.")
 
         # === USERS, DOCTORS & DEPARTMENTS ===
         print("Seeding Departments, Doctors & Users...")
@@ -53,16 +52,14 @@ def seed_data():
             dept = Department(
                 name=dept_name,
                 specialty=specialty,
-                headdoctor=doctors[i]  # correct relationship name
+                headdoctor=doctors[i]
             )
-            doctors[i].department = dept  # assign department to doctor
-
+            doctors[i].department = dept
             db.session.add(dept)
             departments.append(dept)
 
-        db.session.commit()  # ✅ Commit departments after resolving dependencies
+        db.session.commit()
         print(f"✅ {len(doctors)} Doctors, Users, and Departments created.")
-
 
         # === PATIENTS & USERS ===
         print("Seeding Patients & Users...")
@@ -70,13 +67,17 @@ def seed_data():
         for _ in range(20):
             name = fake.name()
             role = rc(["inpatient", "outpatient", "patient"])
-            user = User(username=name.lower().replace(" ", ""), password="password", role="patient")
+            user = User(
+                username=name.lower().replace(" ", ""),
+                password="password",
+                role="patient"
+            )
 
             if role == "inpatient":
                 patient = Inpatient(
                     name=name,
                     age=random.randint(1, 90),
-                    gender=rc(["Male", "Female"]),
+                    gender=rc(["Male", "Female", "Other"]),
                     admission_date=fake.date_this_year(),
                     ward_number=random.randint(100, 300),
                     user=user
@@ -85,20 +86,19 @@ def seed_data():
                 patient = Outpatient(
                     name=name,
                     age=random.randint(1, 90),
-                    gender=rc(["Male", "Female"]),
-                    last_visit_date=fake.date_this_year(),  # <-- FIXED: pass as date, not string
+                    gender=rc(["Male", "Female", "Other"]),
+                    last_visit_date=fake.date_this_year(),
                     user=user
                 )
             else:
                 patient = Patient(
                     name=name,
                     age=random.randint(1, 90),
-                    gender=rc(["Male", "Female"]),
+                    gender=rc(["Male", "Female", "Other"]),
                     user=user
                 )
 
-            db.session.add(user)
-            db.session.add(patient)
+            db.session.add_all([user, patient])
             patients.append(patient)
 
         db.session.commit()
@@ -127,9 +127,17 @@ def seed_data():
         # === MEDICAL RECORDS ===
         print("Seeding Medical Records...")
         for _ in range(20):
+            # Ensure diagnosis has at least 5 characters
+            while True:
+                diagnosis = fake.sentence(nb_words=3).strip('.')
+                if len(diagnosis) >= 5:
+                    break
+
+            treatment = fake.sentence(nb_words=4).strip('.')
+
             record = Medical_Record(
-                diagnosis=fake.text(max_nb_chars=15).strip('.'),
-                treatment=fake.sentence(nb_words=4),
+                diagnosis=diagnosis,
+                treatment=treatment,
                 date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                 patient=rc(patients),
                 doctor=rc(doctors)
@@ -142,4 +150,3 @@ def seed_data():
 
 if __name__ == "__main__":
     seed_data()
-
