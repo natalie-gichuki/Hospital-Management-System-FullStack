@@ -1,14 +1,15 @@
+# app/__init__.py
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+# Removed: from flask_jwt_extended import JWTManager # <--- REMOVED THIS IMPORT
 from flask_restx import Api
 from .config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
-jwt = JWTManager()
+# Removed: jwt = JWTManager() # <--- REMOVED THIS LINE
 
 api = Api(
     title="Hospital Management System API",
@@ -21,10 +22,12 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app)
+    # Keeping CORS as it's good practice for frontend-backend interaction
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
+
     db.init_app(app)
     migrate.init_app(app, db)
-    jwt.init_app(app)
+    # Removed: jwt.init_app(app) # <--- REMOVED THIS LINE
     api.init_app(app)
 
     # === RESTX Namespaces ===
@@ -37,17 +40,16 @@ def create_app():
     from app.routes.medical_records import medical_ns
 
     # Register namespaces with the API
-    api.add_namespace(auth_ns, path="/auth")
-    api.add_namespace(patient_ns, path="/patients")
-    api.add_namespace(doctor_ns, path="/doctors")
-    api.add_namespace(department_ns, path="/departments")
-    api.add_namespace(appointments_ns, path="/appointments")
-    api.add_namespace(medical_ns, path="/medical-records")
+    # I've kept the trailing slashes here for consistency with your frontend calls
+    api.add_namespace(auth_ns, path="/auth/")
+    api.add_namespace(patient_ns, path="/patients/")
+    api.add_namespace(doctor_ns, path="/doctors/")
+    api.add_namespace(department_ns, path="/departments/")
+    api.add_namespace(appointments_ns, path="/appointments/")
+    api.add_namespace(medical_ns, path="/medical-records/")
 
     with app.app_context():
         from . import models
-        db.create_all()  # Uncomment this line if you want Flask-SQLAlchemy to create tables
-                          # on app startup. However, it's generally recommended to use Flask-Migrate
-                          # for schema management in production environments (flask db migrate/upgrade).
+        db.create_all()
 
     return app
