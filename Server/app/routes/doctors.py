@@ -40,11 +40,15 @@ def update_doctor(id):
         return jsonify({"error": "Doctor not found"}), 404
 
     data = request.get_json()
-    for field in ['name', 'specialization', 'department_id']:
+
+    # Include 'contact' so it can be updated from the frontend
+    for field in ['name', 'specialization', 'contact', 'department_id']:
         if field in data:
             setattr(doctor, field, data[field])
+
     db.session.commit()
     return jsonify(doctor.to_dict()), 200
+
 
 @doctor_bp.route('/<int:id>', methods=['DELETE'])
 def delete_doctor(id):
