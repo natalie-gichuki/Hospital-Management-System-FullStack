@@ -1,7 +1,8 @@
 from app import db, create_app
-from app.models import User, Doctor, Department, Patient, Inpatient, Outpatient, Appointment, MedicalRecord
+from app.models import User, Doctor, Department, Patient, Inpatient, Outpatient, Appointment, Medical_Record
 from faker import Faker
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
+datetime.now(timezone.utc)
 import random
 from random import choice as rc
 
@@ -52,7 +53,7 @@ def seed_data():
             dept = Department(
                 name=dept_name,
                 specialty=specialty,
-                head_doctor=doctors[i]
+                headdoctor=doctors[i]  # correct relationship name
             )
             doctors[i].department = dept  # assign department to doctor
 
@@ -76,7 +77,7 @@ def seed_data():
                     name=name,
                     age=random.randint(1, 90),
                     gender=rc(["Male", "Female"]),
-                    admission_date=str(fake.date_this_year()),
+                    admission_date=fake.date_this_year(),
                     ward_number=random.randint(100, 300),
                     user=user
                 )
@@ -85,7 +86,7 @@ def seed_data():
                     name=name,
                     age=random.randint(1, 90),
                     gender=rc(["Male", "Female"]),
-                    last_visit_date=str(fake.date_this_year()),
+                    last_visit_date=fake.date_this_year(),  # <-- FIXED: pass as date, not string
                     user=user
                 )
             else:
@@ -112,7 +113,7 @@ def seed_data():
 
         for _ in range(15):
             appt = Appointment(
-                appointment_date=datetime.utcnow() + timedelta(days=random.randint(-10, 10), hours=random.randint(8, 17)),
+                date=datetime.utcnow() + timedelta(days=random.randint(-10, 10), hours=random.randint(8, 17)),
                 reason=rc(reasons),
                 status=rc(["Scheduled", "Completed", "Cancelled"]),
                 patient=rc(patients),
@@ -126,10 +127,10 @@ def seed_data():
         # === MEDICAL RECORDS ===
         print("Seeding Medical Records...")
         for _ in range(20):
-            record = MedicalRecord(
-                diagnosis=fake.word().capitalize(),
+            record = Medical_Record(
+                diagnosis=fake.text(max_nb_chars=15).strip('.'),
                 treatment=fake.sentence(nb_words=4),
-                visit_date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
+                date=datetime.utcnow() - timedelta(days=random.randint(1, 30)),
                 patient=rc(patients),
                 doctor=rc(doctors)
             )
@@ -141,3 +142,4 @@ def seed_data():
 
 if __name__ == "__main__":
     seed_data()
+

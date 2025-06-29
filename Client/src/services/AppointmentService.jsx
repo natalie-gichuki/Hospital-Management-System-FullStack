@@ -1,25 +1,13 @@
-const BASE_URL = 'http://localhost:5555/appointments/';
+import api from './api';
 
 export const getAppointments = async () => {
-  const res = await fetch(BASE_URL);
-  if (!res.ok) throw new Error("Failed to fetch appointments");
-  return res.json();
+  return await api.get('/appointments/');
 };
 
 export const addAppointment = async (appointmentData) => {
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(appointmentData),
-  });
-  if (!res.ok) throw new Error("Failed to add appointment");
-  return res.json();
+  return await api.post('/appointments/', appointmentData);
 };
 
 export const deleteAppointment = async (id) => {
-  const res = await fetch(`${BASE_URL}/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error("Failed to delete appointment");
-  return true;
+  return await api.delete(`/appointments/${id}`);
 };

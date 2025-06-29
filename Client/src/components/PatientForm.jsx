@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -38,21 +37,21 @@ const PatientForm = () => {
       age: Yup.number().typeError('Age must be a number').required('Age is required'),
       gender: Yup.string().required('Gender is required'),
       type: Yup.string().required('Type is required'),
-      admission_date: Yup.string().when('type', {
-        is: 'inpatient',
-        then: Yup.string().required('Admission date is required'),
-        otherwise: Yup.string().nullable(),
-      }),
-      ward_number: Yup.number().when('type', {
-        is: 'inpatient',
-        then: Yup.number().typeError('Ward number must be a number').required('Ward number is required'),
-        otherwise: Yup.number().nullable(),
-      }),
-      last_visit_date: Yup.string().when('type', {
-        is: 'outpatient',
-        then: Yup.string().required('Last visit date is required'),
-        otherwise: Yup.string().nullable(),
-      }),
+      admission_date: Yup.string().when('type', (type, schema) =>
+        type === 'inpatient'
+          ? schema.required('Admission date is required')
+          : schema.nullable()
+      ),
+      ward_number: Yup.number().when('type', (type, schema) =>
+        type === 'inpatient'
+          ? schema.typeError('Ward number must be a number').required('Ward number is required')
+          : schema.nullable()
+      ),
+      last_visit_date: Yup.string().when('type', (type, schema) =>
+        type === 'outpatient'
+          ? schema.required('Last visit date is required')
+          : schema.nullable()
+      ),
     }),
     onSubmit: async (values, { resetForm }) => {
       setError('');
