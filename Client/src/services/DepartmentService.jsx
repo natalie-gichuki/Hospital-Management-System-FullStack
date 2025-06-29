@@ -1,5 +1,5 @@
 // services/DepartmentService.js
-import api from './api';
+import api from './Api';
 
 export const getDepartments = async () => {
   const res = await api.get('/departments/');

@@ -1,5 +1,5 @@
 // services/PatientService.js
-import api from './api';
+import api from './Api';
 
 export const getAllPatients = async () => {
   const response = await api.get('/patients/');

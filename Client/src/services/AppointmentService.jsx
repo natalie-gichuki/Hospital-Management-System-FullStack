@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 export const getAppointments = async () => {
   return await api.get('/appointments/');

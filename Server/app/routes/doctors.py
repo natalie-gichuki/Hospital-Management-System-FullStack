@@ -110,7 +110,7 @@ class DoctorByID(Resource):
 
 
             doc_dict = doctor.to_dict()
-            if doc.department: # Assuming 'doc' should be 'doctor' here based on your previous code
+            if doctor.department: # Assuming 'doc' should be 'doctor' here based on your previous code
                 doc_dict['department_name'] = doctor.department.name
             return doc_dict, 200
         except Exception as e:
