@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
-import { addAppointment } from "../services/AppointmentService";
+import { addAppointment, patchAppointment } from "../services/AppointmentService";
 import { getDoctors } from "../services/DoctorService";
 import { getAllPatients } from "../services/PatientService";
 
-function AppointmentForm({ onAdd }) {
+function AppointmentForm({ onAdd, selectedAppointment, setSelectedAppointment }) {
   const [formData, setFormData] = useState({
     date: "",
     reason: "",
@@ -19,6 +18,17 @@ function AppointmentForm({ onAdd }) {
     getAllPatients().then(setPatients);
   }, []);
 
+  useEffect(() => {
+    if (selectedAppointment) {
+      setFormData({
+        date: selectedAppointment.date,
+        reason: selectedAppointment.reason,
+        doctor_id: selectedAppointment.doctor_id.toString(),
+        patient_id: selectedAppointment.patient_id.toString(),
+      });
+    }
+  }, [selectedAppointment]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -26,8 +36,15 @@ function AppointmentForm({ onAdd }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const created = await addAppointment(formData);
-      onAdd(created);
+      let appointment;
+      if (selectedAppointment) {
+        appointment = await patchAppointment(selectedAppointment.id, formData);
+        setSelectedAppointment(null); // clear form after editing
+      } else {
+        appointment = await addAppointment(formData);
+      }
+
+      onAdd(appointment);
       setFormData({ date: "", reason: "", doctor_id: "", patient_id: "" });
     } catch (err) {
       console.error(err.message);
@@ -36,7 +53,9 @@ function AppointmentForm({ onAdd }) {
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow rounded-xl mb-8">
-      <h2 className="text-2xl font-bold mb-4">Add Appointment</h2>
+      <h2 className="text-2xl font-bold mb-4">
+        {selectedAppointment ? "Edit Appointment" : "Add Appointment"}
+      </h2>
       <form onSubmit={handleSubmit} className="space-y-3">
         <input
           type="date"
@@ -87,7 +106,7 @@ function AppointmentForm({ onAdd }) {
           type="submit"
           className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
         >
-          Add Appointment
+          {selectedAppointment ? "Update Appointment" : "Add Appointment"}
         </button>
       </form>
     </div>
