@@ -229,12 +229,12 @@ const DepartmentForm = () => {
       id: '',
       name: '',
       specialty: '',
-      head_doctor_id: '',
+      headdoctor_id: '',
     },
     validationSchema: Yup.object({
       name: Yup.string().required('Department name is required'),
       specialty: Yup.string().required('Specialty is required'),
-      head_doctor_id: Yup.number()
+      headdoctor_id: Yup.number()
         .typeError('Head doctor must be selected')
         .required('Head doctor is required'),
     }),
@@ -246,14 +246,14 @@ const DepartmentForm = () => {
           await updateDepartment(values.id, {
             name: values.name,
             specialty: values.specialty,
-            head_doctor_id: parseInt(values.head_doctor_id),
+            headdoctor_id: parseInt(values.headdoctor_id),
           });
           setSuccess(`Department "${values.name}" updated successfully!`);
         } else {
           const newDept = await createDepartment({
             name: values.name,
             specialty: values.specialty,
-            head_doctor_id: parseInt(values.head_doctor_id),
+            headdoctor_id: parseInt(values.headdoctor_id),
           });
           setSuccess(`Department "${newDept.name}" created successfully!`);
         }
@@ -325,10 +325,10 @@ const DepartmentForm = () => {
           )}
 
           <select
-            name="head_doctor_id"
+            name="headdoctor_id"
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            value={formik.values.head_doctor_id}
+            value={formik.values.headdoctor_id}
             className="w-full border px-3 py-2 rounded bg-white"
           >
             <option value="">-- Select Head Doctor --</option>
@@ -339,8 +339,8 @@ const DepartmentForm = () => {
             ))}
           </select>
 
-          {formik.touched.head_doctor_id && formik.errors.head_doctor_id && (
-            <p className="text-red-500 text-sm">{formik.errors.head_doctor_id}</p>
+          {formik.touched.headdoctor_id && formik.errors.headdoctor_id && (
+            <p className="text-red-500 text-sm">{formik.errors.headdoctor_id}</p>
           )}
 
           <div className="flex gap-3">
