@@ -71,11 +71,10 @@ function Doctors() {
         </form>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {doctors.map((doctor) => (
-          <DoctorCard key={doctor.id} doctor={doctor} onDelete={handleDelete} />
-        ))}
+      <div className="max-w-6xl mx-auto mt-10">
+        <DoctorCard doctors={doctors} onDelete={handleDelete} />
       </div>
+
     </div>
   );
 }
