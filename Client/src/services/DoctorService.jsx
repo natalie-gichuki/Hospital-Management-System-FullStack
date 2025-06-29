@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5555/doctors/';
+const BASE_URL = 'http://localhost:5555/doctors';
 
 export const getDoctors = async () => {
   const res = await fetch(BASE_URL);
