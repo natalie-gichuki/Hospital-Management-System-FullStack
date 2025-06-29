@@ -1,4 +1,3 @@
-# app/routes/doctors.py
 
 from flask import Blueprint, request, jsonify
 from app import db
