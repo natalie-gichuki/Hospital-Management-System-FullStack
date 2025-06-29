@@ -16,6 +16,20 @@ export const addDoctor = async (doctorData) => {
   return res.json();
 };
 
+export const patchDoctor = async (id, doctorData) => {
+  const res = await fetch(`${BASE_URL}/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(doctorData),
+  });
+
+  if (!res.ok) throw new Error("Failed to update doctor");
+  return res.json();
+};
+
+
 export const deleteDoctor = async (id) => {
   const res = await fetch(`${BASE_URL}/${id}`, {
     method: 'DELETE',
