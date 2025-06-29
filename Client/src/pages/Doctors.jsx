@@ -1,11 +1,11 @@
-
 import { useEffect, useState } from "react";
-import { getDoctors, addDoctor, deleteDoctor } from "../services/DoctorService";
+import { getDoctors, addDoctor, deleteDoctor, patchDoctor } from "../services/DoctorService";
 import DoctorCard from "../components/DoctorCard";
 
 function Doctors() {
   const [doctors, setDoctors] = useState([]);
   const [newDoctor, setNewDoctor] = useState({ name: "", specialization: "", contact: "" });
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     getDoctors().then(setDoctors).catch(console.error);
@@ -14,8 +14,14 @@ function Doctors() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const created = await addDoctor(newDoctor);
-      setDoctors([...doctors, created]);
+      if (editingId) {
+        const updated = await patchDoctor(editingId, newDoctor);
+        setDoctors(doctors.map(doc => (doc.id === editingId ? updated : doc)));
+        setEditingId(null);
+      } else {
+        const created = await addDoctor(newDoctor);
+        setDoctors([...doctors, created]);
+      }
       setNewDoctor({ name: "", specialization: "", contact: "" });
     } catch (error) {
       console.error(error.message);
@@ -31,10 +37,21 @@ function Doctors() {
     }
   };
 
+  const handleEdit = (doctor) => {
+    setNewDoctor({
+      name: doctor.name,
+      specialization: doctor.specialization,
+      contact: doctor.contact,
+    });
+    setEditingId(doctor.id);
+  };
+
   return (
     <div className="ml-64 p-6 bg-gray-50 min-h-screen">
       <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-md">
-        <h2 className="text-2xl font-bold mb-6 text-blue-900">Add a New Doctor</h2>
+        <h2 className="text-2xl font-bold mb-6 text-blue-900">
+          {editingId ? "Edit Doctor" : "Add a New Doctor"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -66,15 +83,14 @@ function Doctors() {
             type="submit"
             className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded hover:bg-blue-700 transition"
           >
-            Add Doctor
+            {editingId ? "Update Doctor" : "Add Doctor"}
           </button>
         </form>
       </div>
 
       <div className="max-w-6xl mx-auto mt-10">
-        <DoctorCard doctors={doctors} onDelete={handleDelete} />
+        <DoctorCard doctors={doctors} onDelete={handleDelete} onEdit={handleEdit} />
       </div>
-
     </div>
   );
 }
