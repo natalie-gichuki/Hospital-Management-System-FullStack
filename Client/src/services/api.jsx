@@ -58,7 +58,7 @@ const api = {
     headers: defaultHeaders,
   });
   if (!res.ok) throw new Error(await res.text());
-  return res.json(); // ✅ parse the JSON so the UI doesn't break
+  return res.status !== 204 ? res.json() : null;
 },
 
 };

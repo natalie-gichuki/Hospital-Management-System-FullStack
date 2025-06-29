@@ -35,25 +35,33 @@ const PatientForm = () => {
     },
     validationSchema: Yup.object({
       name: Yup.string().required('Name is required'),
-      age: Yup.number().typeError('Age must be a number').required('Age is required'),
+      age: Yup.number()
+        .typeError('Age must be a number')
+        .required('Age is required'),
       gender: Yup.string().required('Gender is required'),
       type: Yup.string().required('Type is required'),
-      admission_date: Yup.string().when('type', {
-        is: 'inpatient',
-        then: Yup.string().required('Admission date is required'),
-        otherwise: Yup.string().nullable(),
-      }),
-      ward_number: Yup.number().when('type', {
-        is: 'inpatient',
-        then: Yup.number().typeError('Ward number must be a number').required('Ward number is required'),
-        otherwise: Yup.number().nullable(),
-      }),
-      last_visit_date: Yup.string().when('type', {
-        is: 'outpatient',
-        then: Yup.string().required('Last visit date is required'),
-        otherwise: Yup.string().nullable(),
-      }),
+
+      admission_date: Yup.string().when('type', (type, schema) =>
+        type === 'inpatient'
+          ? schema.required('Admission date is required')
+          : schema.notRequired()
+      ),
+
+      ward_number: Yup.number().when('type', (type, schema) =>
+        type === 'inpatient'
+          ? schema
+            .typeError('Ward number must be a number')
+            .required('Ward number is required')
+          : schema.notRequired()
+      ),
+
+      last_visit_date: Yup.string().when('type', (type, schema) =>
+        type === 'outpatient'
+          ? schema.required('Last visit date is required')
+          : schema.notRequired()
+      ),
     }),
+
     onSubmit: async (values, { resetForm }) => {
       setError('');
       setSuccess('');
@@ -73,6 +81,8 @@ const PatientForm = () => {
     },
   });
 
+
+
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this patient?')) return;
     try {
@@ -83,6 +93,7 @@ const PatientForm = () => {
       setError('Failed to delete patient');
     }
   };
+
 
   return (
     <div className="p-6 ml-64 bg-gray-50 min-h-screen">
@@ -248,3 +259,6 @@ const PatientForm = () => {
 };
 
 export default PatientForm;
+
+
+
