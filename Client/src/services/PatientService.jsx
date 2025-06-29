@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 export const getAllPatients = async () => await api.get('/patients/');
 export const getPatientById = async (id) => await api.get(`/patients/${id}`);

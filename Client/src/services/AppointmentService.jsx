@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 export const getAppointments = async () => await api.get('/appointments/');
 export const addAppointment = async (data) => await api.post('/appointments/', data);

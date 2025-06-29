@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 // Removed: import { login } from "../services/AuthService"; // <--- REMOVED THIS IMPORT
-import api from "../services/api"; // <--- NEW: Import the api service
+import api from "../services/Api"; // <--- NEW: Import the api service
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState("");

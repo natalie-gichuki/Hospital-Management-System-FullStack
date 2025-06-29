@@ -1,4 +1,4 @@
-import api from './api';
+import api from './Api';
 
 export const getDepartments = async () => await api.get('/departments/');
 export const createDepartment = async (data) => await api.post('/departments/', data);
