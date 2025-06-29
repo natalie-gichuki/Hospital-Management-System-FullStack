@@ -1,19 +1,18 @@
-from flask import request, jsonify
+from flask import request
 from flask_restx import Namespace, Resource, fields
 # Ensure this import matches your model class name: Medical_Record
-from app.models import Medical_Record, Patient, Doctor, User # Added User for clarity in role logic
+from app.models import Medical_Record, Patient, Doctor, User
 from app import db
-from app.routes.auth import role_required # Assuming this decorator is correctly implemented
-from sqlalchemy.exc import IntegrityError, NoResultFound # Added NoResultFound for explicit checks
+# Removed: from app.routes.auth import role_required # <--- REMOVED THIS IMPORT
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from datetime import datetime
-from flask_jwt_extended import current_user # Make sure current_user is populated by your JWT setup
+# Removed: from flask_jwt_extended import current_user # <--- REMOVED THIS IMPORT
 
 medical_ns = Namespace('medical_records', description="Medical Record operations")
 
 # === Swagger Models ===
-# The 'date' field will now be expected and returned as an ISO formatted string
-# 'status' field added as per your Appointment model (assuming you might want to add it to medical records too, or remove if not)
-medical_record_model = medical_ns.model('MedicalRecordInput', { # Renamed to avoid confusion with ORM object
+# These models remain as they define the API's data structure
+medical_record_model = medical_ns.model('MedicalRecordInput', {
     'patient_id': fields.Integer(required=True, example=1, description="ID of the patient associated with the record."),
     'doctor_id': fields.Integer(required=True, example=2, description="ID of the doctor who created the record."),
     'date': fields.String(required=False, example="2024-04-23T14:00:00", description="Date and time of the medical record (ISO 8601 format). Defaults to current UTC time if not provided."),
@@ -29,12 +28,11 @@ update_medical_record_model = medical_ns.model('UpdateMedicalRecordInput', {
     'treatment': fields.String(example="Antihistamines and nasal spray.", description="Updated treatment (optional)."),
 })
 
-# Output model for Swagger documentation (reflects what to_dict() returns)
 output_medical_record_model = medical_ns.model('MedicalRecordOutput', {
     'id': fields.Integer(readOnly=True, description="Unique identifier for the medical record."),
     'patient_id': fields.Integer(description="ID of the patient."),
     'doctor_id': fields.Integer(description="ID of the doctor."),
-    'date': fields.DateTime(dt_format='iso8601', description="Date and time of the record."), # Use fields.DateTime for output
+    'date': fields.DateTime(dt_format='iso8601', description="Date and time of the record."),
     'diagnosis': fields.String(description="Diagnosis."),
     'treatment': fields.String(description="Treatment."),
     'patient_name': fields.String(description="Name of the associated patient (if available)."),
@@ -45,74 +43,58 @@ output_medical_record_model = medical_ns.model('MedicalRecordOutput', {
 @medical_ns.route('/')
 class MedicalRecordList(Resource):
 
-    @role_required(['admin', 'doctor', 'patient', 'department_manager']) # Patient added as they might view their own records
-    @medical_ns.response(200, "Success", [output_medical_record_model])
-    @medical_ns.response(403, "Forbidden")
+    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
+    @medical_ns.response(200, "Success")
+    # @medical_ns.response(403, "Forbidden") # No longer applicable without direct role checking
     @medical_ns.response(500, "Internal Server Error")
+    @medical_ns.marshal_list_with(output_medical_record_model)
     def get(self):
-        """Get all medical records (admin/doctor/department_manager) or own records (patient)"""
+        """Get all medical records"""
         try:
-            query = Medical_Record.query
-
-            # Implement specific access control based on roles
-            if current_user.role == 'patient':
-                if not current_user.patient_profile:
-                    return {'message': 'User is a patient but has no associated patient profile.'}, 403
-                query = query.filter_by(patient_id=current_user.patient_profile.id)
-            elif current_user.role == 'doctor':
-                if not current_user.doctor_profile:
-                    return {'message': 'User is a doctor but has no associated doctor profile.'}, 403
-                # Doctors can see records they created or records of patients they are assigned to
-                # For simplicity here, they only see records they created, adjust as needed
-                query = query.filter_by(doctor_id=current_user.doctor_profile.id)
-            # Admin and Department Manager can see all (assuming current query covers this)
-
-            medical_records = query.all()
+            # All records are now accessible since there's no JWT-based role filtering
+            medical_records = Medical_Record.query.all()
             mr_list = []
             for mr in medical_records:
-                mr_dict = mr.to_dict() # Serialize using SerializerMixin
+                mr_dict = mr.to_dict()
                 if mr.patient:
                     mr_dict['patient_name'] = mr.patient.name
                 if mr.doctor:
                     mr_dict['doctor_name'] = mr.doctor.name
                 mr_list.append(mr_dict)
-            return jsonify(mr_list)
+            return mr_list, 200
         except Exception as e:
-            # db.session.rollback() # Rollback is not necessary for GET requests unless a transaction was started
-            print(f"Error fetching medical records: {e}") # Log the error
+            print(f"Error fetching medical records: {e}")
             return {'error': 'Internal server error: ' + str(e)}, 500
 
-    @role_required(['admin', 'doctor'])
+    # Removed: @role_required(['admin', 'doctor']) # <--- REMOVED THIS DECORATOR
     @medical_ns.expect(medical_record_model)
-    @medical_ns.response(201, 'Medical record created', output_medical_record_model)
+    @medical_ns.response(201, 'Medical record created')
     @medical_ns.response(400, 'Invalid input')
     @medical_ns.response(404, 'Patient or Doctor not found')
     @medical_ns.response(409, 'Integrity Error (e.g., duplicate entry, foreign key violation)')
     @medical_ns.response(500, "Internal Server Error")
+    @medical_ns.marshal_with(output_medical_record_model, code=201)
     def post(self):
         """Create a new medical record"""
         try:
             data = request.get_json()
             patient_id = data.get('patient_id')
             doctor_id = data.get('doctor_id')
-            # Use 'date' instead of 'visit_date'
             date_str = data.get('date')
             diagnosis = data.get('diagnosis')
             treatment = data.get('treatment')
 
-            # Validate required fields for POST
             if not all([patient_id, doctor_id, diagnosis, treatment]):
                 return {'error': 'Patient ID, Doctor ID, Diagnosis, and Treatment are required fields.'}, 400
 
-            # Convert date string to datetime object, default to now if not provided
             record_date = None
             if date_str:
                 try:
                     record_date = datetime.fromisoformat(date_str)
                 except ValueError:
-                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g., YYYY-MM-DDTHH:MM:SS).'}, 400
+                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g.,iança-MM-DDTHH:MM:SS).'}, 400
             else:
-                record_date = datetime.utcnow() # Default to current UTC time
+                record_date = datetime.utcnow()
 
             patient = Patient.query.get(patient_id)
             doctor = Doctor.query.get(doctor_id)
@@ -122,22 +104,22 @@ class MedicalRecordList(Resource):
             if not doctor:
                 return {'error': f'Doctor with ID {doctor_id} not found.'}, 404
 
-            new_mr = Medical_Record( # Use Medical_Record
+            new_mr = Medical_Record(
                 patient_id=patient_id,
                 doctor_id=doctor_id,
-                date=record_date, # Use 'date'
+                date=record_date,
                 diagnosis=diagnosis,
                 treatment=treatment
             )
 
             db.session.add(new_mr)
             db.session.commit()
-            return jsonify(new_mr.to_dict()), 201 # Return the serialized new record
+            return new_mr.to_dict(), 201
         except IntegrityError as e:
             db.session.rollback()
             print(f"Integrity Error: {e}")
             return {'error': 'Data integrity issue: could be duplicate entry or invalid foreign key reference.'}, 409
-        except ValueError as e: # Catch validation errors from model
+        except ValueError as e:
             db.session.rollback()
             return {'error': str(e)}, 400
         except Exception as e:
@@ -149,30 +131,26 @@ class MedicalRecordList(Resource):
 @medical_ns.route('/<int:id>')
 class MedicalRecordByID(Resource):
 
-    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
-    @medical_ns.response(200, 'Success', output_medical_record_model)
-    @medical_ns.response(403, 'Forbidden')
+    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
+    @medical_ns.response(200, 'Success')
+    # @medical_ns.response(403, 'Forbidden') # No longer applicable
     @medical_ns.response(404, 'Medical record not found')
     @medical_ns.response(500, "Internal Server Error")
+    @medical_ns.marshal_with(output_medical_record_model)
     def get(self, id):
         """Get a medical record by ID"""
         try:
-            medical_record = Medical_Record.query.get(id) # Use Medical_Record
+            medical_record = Medical_Record.query.get(id)
             if not medical_record:
                 return {'error': 'Medical record not found'}, 404
 
-            # Role-based access filtering
-            if current_user.role == 'patient':
-                if not current_user.patient_profile or current_user.patient_profile.id != medical_record.patient_id:
-                    return {'message': 'Access denied: Patients can only view their own records.'}, 403
-            elif current_user.role == 'doctor':
-                # Doctors can view records they created
-                if not current_user.doctor_profile or current_user.doctor_profile.id != medical_record.doctor_id:
-                    # Doctors can also view records of patients they treat, even if they didn't create them.
-                    # This requires checking if the doctor is associated with the patient's current appointments or historical data.
-                    # For simplicity, keeping it to records they created for now.
-                    # You might add: or medical_record.patient.appointments.filter_by(doctor_id=current_user.doctor_profile.id).first():
-                    return {'message': 'Access denied: Doctors can only view their own created records.'}, 403
+            # Removed role-based access filtering as there is no JWT
+            # if current_user.role == 'patient':
+            #     if not current_user.patient_profile or current_user.patient_profile.id != medical_record.patient_id:
+            #         return {'message': 'Access denied: Patients can only view their own records.'}, 403
+            # elif current_user.role == 'doctor':
+            #     if not current_user.doctor_profile or current_user.doctor_profile.id != medical_record.doctor_id:
+            #         return {'message': 'Access denied: Doctors can only view their own created records.'}, 403
 
             mr_dict = medical_record.to_dict()
             if medical_record.patient:
@@ -180,29 +158,30 @@ class MedicalRecordByID(Resource):
             if medical_record.doctor:
                 mr_dict['doctor_name'] = medical_record.doctor.name
 
-            return jsonify(mr_dict)
+            return mr_dict, 200
         except Exception as e:
             print(f"Error fetching medical record by ID: {e}")
             return {'error': 'Internal server error: ' + str(e)}, 500
 
-    @role_required(['admin', 'doctor'])
+    # Removed: @role_required(['admin', 'doctor']) # <--- REMOVED THIS DECORATOR
     @medical_ns.expect(update_medical_record_model)
-    @medical_ns.response(200, 'Updated successfully', output_medical_record_model)
+    @medical_ns.response(200, 'Updated successfully')
+    # @medical_ns.response(403, 'Forbidden') # No longer applicable
     @medical_ns.response(400, 'Invalid input')
-    @medical_ns.response(403, 'Forbidden') # Added for potential access control
     @medical_ns.response(404, 'Not found')
     @medical_ns.response(409, 'Integrity error')
     @medical_ns.response(500, "Internal Server Error")
+    @medical_ns.marshal_with(output_medical_record_model)
     def patch(self, id):
         """Update a medical record by ID"""
         try:
-            record = Medical_Record.query.get(id) # Use Medical_Record
+            record = Medical_Record.query.get(id)
             if not record:
                 return {'error': 'Medical record not found'}, 404
 
-            # Doctors can only update records they created
-            if current_user.role == 'doctor' and current_user.doctor_profile and current_user.doctor_profile.id != record.doctor_id:
-                return {'message': 'Access denied: Doctors can only update their own created records.'}, 403
+            # Removed doctor-specific access control as there is no JWT
+            # if current_user.role == 'doctor' and current_user.doctor_profile and current_user.doctor_profile.id != record.doctor_id:
+            #     return {'message': 'Access denied: Doctors can only update their own created records.'}, 403
 
             data = request.get_json()
 
@@ -218,12 +197,11 @@ class MedicalRecordByID(Resource):
                     return {'error': 'Doctor not found'}, 404
                 record.doctor_id = data['doctor_id']
 
-            # Use 'date' instead of 'visit_date'
             if 'date' in data:
                 try:
-                    record.date = datetime.fromisoformat(data['date']) # Use record.date
+                    record.date = datetime.fromisoformat(data['date'])
                 except ValueError:
-                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g., YYYY-MM-DDTHH:MM:SS).'}, 400
+                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g.,iança-MM-DDTHH:MM:SS).'}, 400
 
             if 'diagnosis' in data:
                 record.diagnosis = data['diagnosis']
@@ -231,12 +209,12 @@ class MedicalRecordByID(Resource):
                 record.treatment = data['treatment']
 
             db.session.commit()
-            return jsonify(record.to_dict()) # Return updated record
+            return record.to_dict(), 200
         except IntegrityError as e:
             db.session.rollback()
             print(f"Integrity Error: {e}")
             return {'error': 'Data integrity issue: could be invalid foreign key reference.'}, 409
-        except ValueError as e: # Catch validation errors from model
+        except ValueError as e:
             db.session.rollback()
             return {'error': str(e)}, 400
         except Exception as e:
@@ -244,20 +222,20 @@ class MedicalRecordByID(Resource):
             print(f"Error updating medical record: {e}")
             return {'error': 'Internal server error: ' + str(e)}, 500
 
-    @role_required(['admin'])
+    # Removed: @role_required(['admin']) # <--- REMOVED THIS DECORATOR
     @medical_ns.response(204, 'Deleted successfully')
     @medical_ns.response(404, 'Not found')
     @medical_ns.response(500, "Internal Server Error")
     def delete(self, id):
         """Delete a medical record by ID"""
         try:
-            record = Medical_Record.query.get(id) # Use Medical_Record
+            record = Medical_Record.query.get(id)
             if not record:
                 return {'error': 'Medical record not found'}, 404
 
             db.session.delete(record)
             db.session.commit()
-            return '', 204 # No content for 204
+            return '', 204
         except Exception as e:
             db.session.rollback()
             print(f"Error deleting medical record: {e}")

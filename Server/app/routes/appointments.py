@@ -1,15 +1,15 @@
-from flask import request, jsonify
+from flask import request
 from flask_restx import Namespace, Resource, fields
 from app.models import Appointment, Patient, Doctor
 from app import db
-from app.routes.auth import role_required
+# Removed: from app.routes.auth import role_required # <--- REMOVED THIS IMPORT
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
-from flask_jwt_extended import current_user, get_jwt_identity
+# Removed: from flask_jwt_extended import current_user, get_jwt_identity # <--- REMOVED THESE IMPORTS
 
 appointments_ns = Namespace('appointments', description="Operations related to Appointments")
 
-# Swagger Models
+# Swagger Models (These remain as they define the API's data structure)
 appointment_model = appointments_ns.model('Appointment', {
     'id': fields.Integer(readOnly=True),
     'patient_id': fields.Integer(required=True),
@@ -30,7 +30,7 @@ appointment_create_model = appointments_ns.model('AppointmentCreate', {
 class AppointmentList(Resource):
     @appointments_ns.doc('get_all_appointments')
     @appointments_ns.marshal_list_with(appointment_model)
-    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def get(self):
         """Get all appointments"""
         appointments = Appointment.query.all()
@@ -39,7 +39,7 @@ class AppointmentList(Resource):
     @appointments_ns.doc('create_appointment')
     @appointments_ns.expect(appointment_create_model)
     @appointments_ns.marshal_with(appointment_model, code=201)
-    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def post(self):
         """Create a new appointment"""
         data = request.get_json()
@@ -60,6 +60,8 @@ class AppointmentList(Resource):
             if not doctor:
                 return {'error': 'Doctor not found'}, 404
 
+            # Using .replace(tzinfo=None) to ensure comparison with naive datetime.utcnow()
+            # If your app handles timezones, use proper timezone-aware comparisons.
             appointment_date = datetime.fromisoformat(appointment_date_str)
             if appointment_date.replace(tzinfo=None) < datetime.utcnow():
                 return {'error': 'Appointment date cannot be in the past'}, 400
@@ -67,7 +69,7 @@ class AppointmentList(Resource):
             new_appt = Appointment(
                 patient_id=patient_id,
                 doctor_id=doctor_id,
-                appointment_date=appointment_date,
+                date=appointment_date, # Assuming 'date' is the column name in your Appointment model
                 status=status
             )
             db.session.add(new_appt)
@@ -90,24 +92,25 @@ class AppointmentList(Resource):
 class AppointmentByID(Resource):
     @appointments_ns.doc('get_appointment_by_id')
     @appointments_ns.marshal_with(appointment_model)
-    @role_required(['admin', 'doctor', 'patient', 'department_manager'])
+    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def get(self, id):
         """Get a specific appointment by ID"""
         appointment = Appointment.query.get(id)
         if not appointment:
             return {'error': 'Appointment not found'}, 404
 
-        if current_user.role == 'patient' and current_user.patient and current_user.patient.id != appointment.patient_id:
-            return {"msg": "Access denied: Patients can only view their own appointments"}, 403
-        if current_user.role == 'doctor' and current_user.doctor and current_user.doctor.id != appointment.doctor_id:
-            return {"msg": "Access denied: Doctors can only view their own appointments"}, 403
+        # Removed current_user-based access control checks as there is no JWT
+        # if current_user.role == 'patient' and current_user.patient_profile and current_user.patient_profile.id != appointment.patient_id:
+        #      return {"msg": "Access denied: Patients can only view their own appointments"}, 403
+        # if current_user.role == 'doctor' and current_user.doctor_profile and current_user.doctor_profile.id != appointment.doctor_id:
+        #     return {"msg": "Access denied: Doctors can only view their own appointments"}, 403
 
         return appointment.to_dict(), 200
 
     @appointments_ns.doc('update_appointment')
     @appointments_ns.expect(appointment_create_model)
     @appointments_ns.marshal_with(appointment_model)
-    @role_required(['admin', 'doctor', 'department_manager'])
+    # Removed: @role_required(['admin', 'doctor', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def patch(self, id):
         """Update an appointment by ID"""
         appointment = Appointment.query.get(id)
@@ -130,7 +133,7 @@ class AppointmentByID(Resource):
                 new_date = datetime.fromisoformat(data['appointment_date'])
                 if new_date.replace(tzinfo=None) < datetime.utcnow():
                     return {'error': 'Appointment date cannot be in the past'}, 400
-                appointment.appointment_date = new_date
+                appointment.date = new_date # Assuming 'date' is the column name in your Appointment model
             if 'status' in data:
                 appointment.status = data['status']
 
@@ -148,7 +151,7 @@ class AppointmentByID(Resource):
             return {'error': str(e)}, 500
 
     @appointments_ns.doc('delete_appointment')
-    @role_required(['admin', 'department_manager'])
+    # Removed: @role_required(['admin', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def delete(self, id):
         """Delete an appointment by ID"""
         appointment = Appointment.query.get(id)

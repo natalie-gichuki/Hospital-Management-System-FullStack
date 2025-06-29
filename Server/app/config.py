@@ -1,6 +1,6 @@
 # config.py
 import os
-from datetime import timedelta
+# Removed: from datetime import timedelta # No longer needed if JWT_ACCESS_TOKEN_EXPIRES and JWT_REFRESH_TOKEN_EXPIRES are gone
 
 class Config:
     # Database Configuration
@@ -18,10 +18,7 @@ class Config:
     # It's crucial to set a strong, unique value and manage it securely (e.g., via environment variables) in production.
     SECRET_KEY = os.getenv("SECRET_KEY", "your_strong_secret_key")  # IMPORTANT: Change in production
 
-    # JWT Configuration
-    # JWT_SECRET_KEY is used to sign and verify JWTs. Like SECRET_KEY, it must be strong and kept confidential.
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-jwt-key")  # IMPORTANT: Change in production
-    # JWT_ACCESS_TOKEN_EXPIRES sets the expiration time for access tokens.
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    # JWT_REFRESH_TOKEN_EXPIRES sets the expiration time for refresh tokens.
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    # Removed JWT Configuration
+    # JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "super-secret-jwt-key")
+    # JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    # JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
