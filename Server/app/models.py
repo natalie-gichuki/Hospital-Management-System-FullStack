@@ -3,9 +3,6 @@ from app import db
 from sqlalchemy_serializer import SerializerMixin
 from sqlalchemy.orm import validates
 
-
-
-
 class Patient(db.Model, SerializerMixin):
     __tablename__ = 'patients'
 
@@ -78,14 +75,14 @@ class Doctor(db.Model, SerializerMixin):
     name = db.Column(db.String(100), nullable=False)
     specialization = db.Column(db.String(100), nullable=False)
     contact = db.Column(db.String)
-    #department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
+    department_id = db.Column(db.Integer, db.ForeignKey('departments.id'))
 
     # Relationships
-    #department = db.relationship('Department', back_populates='doctors')
+    department = db.relationship('Department', back_populates='doctors')
     appointments = db.relationship('Appointment', back_populates='doctor', cascade='all, delete-orphan')
     medical_records = db.relationship('Medical_Record', back_populates='doctor', cascade='all, delete-orphan')
 
-    serialize_rules = ('-appointments.doctor',) #'-department.doctors','-medical_records.doctor')
+    serialize_rules = ('-appointments.doctor', '-department.doctors','-medical_records.doctor')
 
     def __repr__(self):
         return f"<Doctor {self.name}>"
@@ -108,4 +105,68 @@ class Appointment(db.Model, SerializerMixin):
 
     def __repr__(self):
         return f"<Appointment {self.date} with Doctor {self.doctor_id}>"
-    
+
+class Department(db.Model, SerializerMixin):
+    __tablename__ = 'departments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    specialty = db.Column(db.String(100), nullable=False)
+    headdoctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), unique=True, nullable=True)
+
+    # Relationship to all doctors in this department
+    doctors = db.relationship(
+        'Doctor',
+        back_populates='department',
+        cascade='all, delete-orphan',
+        foreign_keys='Doctor.department_id'
+    )
+
+    # Relationship to the head doctor of this department
+    headdoctor = db.relationship(
+        'Doctor',
+        foreign_keys=[headdoctor_id],
+        post_update=True  # allows the head doctor to also belong to this department
+    )
+
+    # Serialization rules to avoid circular references in JSON output
+    serialize_rules = (
+        '-doctors.department',        # Prevent infinite loop
+        '-headdoctor.department',     # Prevent infinite loop
+        '-headdoctor.user.password',  # Hide sensitive field if included
+    )
+
+    # === Class-level utility methods ===
+
+    @classmethod
+    def get_all(cls, session):
+        return session.query(cls).all()
+
+    @classmethod
+    def get_by_id(cls, session, id):
+        return session.query(cls).get(id)
+
+    def save(self, session):
+        session.add(self)
+        session.commit()
+
+    def delete(self, session):
+        session.delete(self)
+        session.commit()
+
+    # === Validators ===
+
+    @validates('name')
+    def validate_name(self, key, name):
+        if not name or not isinstance(name, str) or not name.strip():
+            raise ValueError("Department name must be a non-empty string.")
+        return name.strip()
+
+    @validates('specialty')
+    def validate_specialty(self, key, specialty):
+        if not specialty or not isinstance(specialty, str) or not specialty.strip():
+            raise ValueError("Specialty must be a non-empty string.")
+        return specialty.strip()
+
+    def __repr__(self):
+        return f"<Department {self.id}: {self.name} ({self.specialty})>"
