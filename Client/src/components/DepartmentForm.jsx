@@ -203,7 +203,7 @@ const DepartmentForm = () => {
                   <td className="border px-3 py-2 space-x-2">
                     <button
                       onClick={() => handleEdit(dept)}
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                      className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                     >
                       Edit
                     </button>
