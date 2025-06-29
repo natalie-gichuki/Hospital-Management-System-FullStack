@@ -4,7 +4,7 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_restx import Api
-from config import Config
+from .config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
