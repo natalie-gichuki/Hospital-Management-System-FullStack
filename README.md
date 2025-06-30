@@ -177,4 +177,4 @@ bash
 MIT License
 
 ### 🔗 Project Link
-👉 GitHub Repository
+👉 https://github.com/natalie-gichuki/Hospital-Management-System-FullStack
