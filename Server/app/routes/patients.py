@@ -9,7 +9,7 @@ class HomeResource(Resource):
     
     def get(self):
         
-       response = make_response(jsonify({"message": "Welcome to the Patient API!"}), 200)
+       response = make_response(jsonify({"message": "Welcome to the Hospital Management System API!"}), 200)
        return response
 class Patient_List(Resource):
 
