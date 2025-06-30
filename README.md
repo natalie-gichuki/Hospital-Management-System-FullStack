@@ -1,199 +1,180 @@
-### 🏥 HOSPITAL MANAGEMENT SYSTEM
-A full-stack Hospital Management System with a React + Vite + Tailwind CSS frontend and a Flask + SQLAlchemy REST API backend. Built to streamline patient, doctor, appointment, and medical record management in a hospital environment.
+# 🏥 Hospital Management System
 
-## 🔧 Technologies Used
-Layer                                | Tools Used
--------------------------------------|----------------------------------------------------
-Frontend	                         |React, Vite, Tailwind CSS, React Router, Formik + Yup
-Backend	                             |Python, Flask, Flask-RESTful, SQLAlchemy, Flask-Migrate
-Database	                         |SQLite (via SQLAlchemy)
-API Format	                         |JSON (via RESTful routes)
-Other	                             |Flask-CORS, Postman
+A full-stack ⚙️ **Hospital Management System** built with a modern **React + Vite + Tailwind** frontend and a robust **Flask + SQLAlchemy** backend. The system streamlines core hospital operations like managing patients, doctors, appointments, records, and departments.
 
-## ✨ Features
-✅ Frontend Features
-Patient Management: Add, view, and delete patient records
+> 📍 Designed with responsiveness, modularity, and scalability in mind
 
-Doctor Management: Manage doctor profiles and specializations
+---
 
-Appointments: Book and view appointments
+## ⚡️ Tech Stack
 
-Departments: Create and organize hospital departments
+<p align="left">
+  <img src="https://img.shields.io/badge/Frontend-React-blue?style=for-the-badge&logo=react" />
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
+</p>
+<p align="left">
+  <img src="https://img.shields.io/badge/Backend-Flask-black?style=for-the-badge&logo=flask&logoColor=white" />
+  <img src="https://img.shields.io/badge/ORM-SQLAlchemy-red?style=for-the-badge&logo=python" />
+  <img src="https://img.shields.io/badge/DB-SQLite-blue?style=for-the-badge&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Form-Formik-orange?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Yup-Validation-green?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/API-REST_JSON-yellow?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Postman-Test-orange?style=for-the-badge&logo=postman" />
+</p>
 
-Medical Records: View, create, update, and delete patient history
+---
 
-Responsive Design: Fully responsive across all devices
+## ✨ Key Features
 
-## 🧠 Backend Features
-Full CRUD for Patients, Doctors, Appointments, Records, and Departments
+### 🖥️ Frontend
+- 🧍 Patient Management (Add/View/Delete)
+- 🧑‍⚕️ Doctor Profiles with Specializations
+- 🗓️ Appointment Booking and Scheduling
+- 🏬 Department Creation & Head Assignment
+- 📋 Medical Records (View/Create/Update/Delete)
+- 📱 Responsive Design for all devices
+- 🌀 Infinite scroll tech stack badges (scroll above!)
 
-Inpatient and Outpatient support via inheritance
+### ⚙️ Backend
+- ✅ Full CRUD API for all entities
+- 🧬 Polymorphic Inpatient/Outpatient handling
+- 🧠 Linked records and appointments for continuity
+- 📦 Modular Blueprint route structure
+- 🚀 Swagger-ready RESTful endpoints
 
-Doctor-department assignments, including Head Doctor
+---
 
-Linked appointments and records for continuity
+## 🗂️ Project Structure
 
-Modular structure using Flask Blueprints and RESTful Resources
-
-## 🗂 Project Structure
-📁 Frontend - client/
-
+### 🔹 Frontend
+``` bash
 client/
 ├── public/
 ├── src/
 │   ├── assets/
 │   ├── components/
-│   │   ├── AppointmentForm.jsx
-│   │   ├── DepartmentForm.jsx
-│   │   ├── DoctorCard.jsx
-│   │   ├── Navbar.jsx
-│   │   ├── PatientForm.jsx
-│   │   └── RecordTable.jsx
 │   ├── pages/
-│   │   ├── Appointments.jsx
-│   │   ├── Departments.jsx
-│   │   ├── Doctors.jsx
-│   │   ├── Home.jsx
-│   │   ├── Patients.jsx
-│   │   └── Records.jsx
 │   ├── services/
-│   │   ├── AppointmentService.js
-│   │   ├── DepartmentService.js
-│   │   ├── DoctorService.js
-│   │   ├── PatientService.js
-│   │   ├── RecordService.js
-│   │   └── api.js
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── index.css
-
-📁 Backend - server/
-
+```
+### 🔸 Backend
+``` bash 
 server/
 ├── app/
 │   ├── __init__.py
 │   ├── models.py
 │   ├── config.py
 │   └── routes/
-│       ├── patients.py
-│       ├── doctors.py
-│       ├── appointments.py
-│       ├── departments.py
-│       └── medical_records.py
 ├── instance/
-│   └── app.db
 ├── migrations/
 ├── run.py
 ├── requirements.txt
+```
+# 🚀 Getting Started
+## 🛠️ Backend
+``` bash ```
+- Copy
 
-## 🚀 Getting Started
-🛠 Backend Setup
+- git clone https://github.com/natalie-gichuki/Hospital-Management-System-FullStack.git
+- cd Hospital-Management-System-FullStack/server
 
-# Clone the repo and navigate to backend
-git clone 
-cd hospital-management-system/server
+### Setup Python environment
+- python3 -m venv venv
+- source venv/bin/activate
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+### Install and migrate DB
+- pip install -r requirements.txt
+- flask db init
+- flask db migrate -m "init"
+- flask db upgrade
 
-# Install dependencies
-pip install -r requirements.txt
+### Start server
+- python run.py
+>> 📍 Backend runs at: http://localhost:5555
 
-# Initialize DB
-flask db init
-flask db migrate -m "Initial"
-flask db upgrade
+## 🌐 Frontend
+bash
+- Copy
+  
+- cd ../client
+- npm install
 
-# Run the server
-python run.py
-Backend runs at: http://localhost:5555
+# Setup environment
+- echo "VITE_API_BASE_URL=http://localhost:5555" > .env
 
-🌐 Frontend Setup
+# Run the client
+- npm run dev
+>> 📍 Frontend runs at: http://localhost:5173
 
-# Navigate to frontend folder
-cd ../client
-
-# Install dependencies
-npm install
-
-# Create .env file
-echo "VITE_API_BASE_URL=http://localhost:5555" > .env
-
-# Start frontend server
-npm run dev
-Frontend runs at: http://localhost:5173
-
-🔗 API Endpoints
-Resource	                Endpoint	          Methods
-Patients	                /patients/	         GET, POST
-Single Patient	            /patients/<id>	     GET, DELETE
-Records	                    /records/	         GET, POST
-Single Record	            /records/<id>	     GET, PATCH, DELETE
-Appointments	            /appointments/	     GET, POST
-Departments	                /departments/	     GET, POST
-Doctors	                    /doctors/	         GET, POST
+## 🔗 API Endpoints
+* Resource	Endpoint	Methods
+* Patients	/patients/	GET, POST
+* Patient Detail	/patients/<id>	GET, DELETE
+* Records	/records/	GET, POST
+* Record Detail	/records/<id>	GET, PATCH, DELETE
+* Appointments	/appointments/	GET, POST
+* Departments	/departments/	GET, POST
+* Doctors	/doctors/	GET, POST
 
 ## 🎨 Styling Guidelines
-Tailwind CSS with mobile-first responsive design
+- Tailwind CSS mobile-first design
 
-Reusable components and utility classes
+- Clean layout, utility-first components
 
-Clean, minimal layout with focus on accessibility
+- Animations with Tailwind and Framer Motion
 
-Transitions and animations for better UX
-
-Custom theme in tailwind.config.js
+- Accessibility-first: readable fonts, semantic tags
 
 ## 💡 Best Practices
-Component-based architecture in React
+✅ Component-based design
 
-Separation of logic: services, components, views
+✅ RESTful routes with meaningful responses
 
-Form validation using Formik + Yup
+✅ Formik + Yup validation
 
-Graceful error handling and feedback
+✅ Blueprints for backend modularity
 
-RESTful API design with clear structure
+✅ CORS-safe frontend/backend interaction
 
-Version-controlled database migrations
+✅ Version-controlled DB migrations
 
-Secure CORS setup for frontend-backend communication
+## 🚧 Future Enhancements
+🔐 Auth system (Role-based Access Control)
 
-## 📈 Future Improvements
-🔐 User Authentication and Role-based Access
+📊 Analytics Dashboard (Recharts/D3)
 
-📊 Charts and analytics dashboard
+🌙 Dark Mode Toggle
 
-🕒 Real-time notifications with WebSockets
+🌍 Internationalization (i18n)
 
-🌙 Dark mode toggle
+🔄 Real-time Appointments (WebSockets)
 
-🌍 Internationalization support
-
-✅ Unit and integration tests
+✅ Full Unit and Integration Testing
 
 ## 🤝 Contributing
-Fork the repo
+```bash```
+- Copy
+  
+#### Step-by-step
+1. Fork the repo
+2. Create feature branch: git checkout -b feature/AmazingFeature
+3. Commit: git commit -m "Add AmazingFeature"
+4. Push: git push origin feature/AmazingFeature
+5. Submit Pull Request
+### 👥 Authors
+## 👩‍💻 Gichuki Natalie
 
-Create your branch (git checkout -b feature/AmazingFeature)
+## 👨‍💻 Kipsang Jesse
 
-Commit your changes (git commit -m 'Add AmazingFeature')
+## 👨‍💻 Kihikah Kariuki
 
-Push to the branch (git push origin feature/AmazingFeature)
+# Special thanks to Moringa School 🎓
 
-Open a Pull Request
+### 📄 License
+MIT License
 
-🧑‍💻 Authors
-This project was proudly built by:
-
-*** Gichuki Natalie ***
-*** Kipsang Jesse ***
-*** Kihikah Kariuki ***
-
-Special thanks to Moringa School for their mentorship and guidance.
-
-📄 License
-Distributed under the MIT License.
-
-## Project Link ```https://github.com/natalie-gichuki/Hospital-Management-System-FullStack.git```
+### 🔗 Project Link
+👉 GitHub Repository
