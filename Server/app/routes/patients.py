@@ -31,7 +31,10 @@ class PatientList(Resource):
         """Get all patients"""
         try:
             patients = Patient.query.all()
-            return [p.to_dict() for p in patients], 200
+            rules = (
+                '-appointments', '-medical_records', '-user.patient_profile'
+            )
+            return [p.to_dict(rules=rules) for p in patients], 200
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 500

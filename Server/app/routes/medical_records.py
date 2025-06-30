@@ -42,38 +42,29 @@ output_medical_record_model = medical_ns.model('MedicalRecordOutput', {
 
 @medical_ns.route('/')
 class MedicalRecordList(Resource):
-
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
-    @medical_ns.response(200, "Success")
-    # @medical_ns.response(403, "Forbidden") # No longer applicable without direct role checking
-    @medical_ns.response(500, "Internal Server Error")
-    @medical_ns.marshal_list_with(output_medical_record_model)
     def get(self):
         """Get all medical records"""
         try:
-            # All records are now accessible since there's no JWT-based role filtering
-            medical_records = Medical_Record.query.all()
-            mr_list = []
-            for mr in medical_records:
-                mr_dict = mr.to_dict()
-                if mr.patient:
-                    mr_dict['patient_name'] = mr.patient.name
-                if mr.doctor:
-                    mr_dict['doctor_name'] = mr.doctor.name
-                mr_list.append(mr_dict)
-            return mr_list, 200
+            records = Medical_Record.query.all()
+            rules = ('-patient', '-doctor')
+            result = []
+            for r in records:
+                rec = r.to_dict(rules=rules)
+                # Optionally add summary fields:
+                rec['patient_name'] = r.patient.name if r.patient else None
+                rec['doctor_name'] = r.doctor.name if r.doctor else None
+                result.append(rec)
+            return result, 200
         except Exception as e:
-            print(f"Error fetching medical records: {e}")
-            return {'error': 'Internal server error: ' + str(e)}, 500
+            db.session.rollback()
+            return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin', 'doctor']) # <--- REMOVED THIS DECORATOR
     @medical_ns.expect(medical_record_model)
     @medical_ns.response(201, 'Medical record created')
     @medical_ns.response(400, 'Invalid input')
     @medical_ns.response(404, 'Patient or Doctor not found')
     @medical_ns.response(409, 'Integrity Error (e.g., duplicate entry, foreign key violation)')
     @medical_ns.response(500, "Internal Server Error")
-    @medical_ns.marshal_with(output_medical_record_model, code=201)
     def post(self):
         """Create a new medical record"""
         try:
@@ -92,7 +83,7 @@ class MedicalRecordList(Resource):
                 try:
                     record_date = datetime.fromisoformat(date_str)
                 except ValueError:
-                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g.,iança-MM-DDTHH:MM:SS).'}, 400
+                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g., YYYY-MM-DDTHH:MM:SS).'}, 400
             else:
                 record_date = datetime.utcnow()
 
@@ -114,7 +105,14 @@ class MedicalRecordList(Resource):
 
             db.session.add(new_mr)
             db.session.commit()
-            return new_mr.to_dict(), 201
+            rules = (
+                '-patient.medical_records', '-doctor.medical_records',
+                '-patient.user', '-doctor.user'
+            )
+            rec = new_mr.to_dict(rules=rules)
+            rec['patient_name'] = patient.name if patient else None
+            rec['doctor_name'] = doctor.name if doctor else None
+            return rec, 201
         except IntegrityError as e:
             db.session.rollback()
             print(f"Integrity Error: {e}")
@@ -130,13 +128,9 @@ class MedicalRecordList(Resource):
 
 @medical_ns.route('/<int:id>')
 class MedicalRecordByID(Resource):
-
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     @medical_ns.response(200, 'Success')
-    # @medical_ns.response(403, 'Forbidden') # No longer applicable
     @medical_ns.response(404, 'Medical record not found')
     @medical_ns.response(500, "Internal Server Error")
-    @medical_ns.marshal_with(output_medical_record_model)
     def get(self, id):
         """Get a medical record by ID"""
         try:
@@ -144,44 +138,31 @@ class MedicalRecordByID(Resource):
             if not medical_record:
                 return {'error': 'Medical record not found'}, 404
 
-            # Removed role-based access filtering as there is no JWT
-            # if current_user.role == 'patient':
-            #     if not current_user.patient_profile or current_user.patient_profile.id != medical_record.patient_id:
-            #         return {'message': 'Access denied: Patients can only view their own records.'}, 403
-            # elif current_user.role == 'doctor':
-            #     if not current_user.doctor_profile or current_user.doctor_profile.id != medical_record.doctor_id:
-            #         return {'message': 'Access denied: Doctors can only view their own created records.'}, 403
-
-            mr_dict = medical_record.to_dict()
-            if medical_record.patient:
-                mr_dict['patient_name'] = medical_record.patient.name
-            if medical_record.doctor:
-                mr_dict['doctor_name'] = medical_record.doctor.name
+            rules = (
+                '-patient.medical_records', '-doctor.medical_records',
+                '-patient.user', '-doctor.user'
+            )
+            mr_dict = medical_record.to_dict(rules=rules)
+            mr_dict['patient_name'] = medical_record.patient.name if medical_record.patient else None
+            mr_dict['doctor_name'] = medical_record.doctor.name if medical_record.doctor else None
 
             return mr_dict, 200
         except Exception as e:
             print(f"Error fetching medical record by ID: {e}")
             return {'error': 'Internal server error: ' + str(e)}, 500
 
-    # Removed: @role_required(['admin', 'doctor']) # <--- REMOVED THIS DECORATOR
     @medical_ns.expect(update_medical_record_model)
     @medical_ns.response(200, 'Updated successfully')
-    # @medical_ns.response(403, 'Forbidden') # No longer applicable
     @medical_ns.response(400, 'Invalid input')
     @medical_ns.response(404, 'Not found')
     @medical_ns.response(409, 'Integrity error')
     @medical_ns.response(500, "Internal Server Error")
-    @medical_ns.marshal_with(output_medical_record_model)
     def patch(self, id):
         """Update a medical record by ID"""
         try:
             record = Medical_Record.query.get(id)
             if not record:
                 return {'error': 'Medical record not found'}, 404
-
-            # Removed doctor-specific access control as there is no JWT
-            # if current_user.role == 'doctor' and current_user.doctor_profile and current_user.doctor_profile.id != record.doctor_id:
-            #     return {'message': 'Access denied: Doctors can only update their own created records.'}, 403
 
             data = request.get_json()
 
@@ -201,7 +182,7 @@ class MedicalRecordByID(Resource):
                 try:
                     record.date = datetime.fromisoformat(data['date'])
                 except ValueError:
-                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g.,iança-MM-DDTHH:MM:SS).'}, 400
+                    return {'error': 'Invalid date format for "date". Use ISO 8601 format (e.g., YYYY-MM-DDTHH:MM:SS).'}, 400
 
             if 'diagnosis' in data:
                 record.diagnosis = data['diagnosis']
@@ -209,7 +190,14 @@ class MedicalRecordByID(Resource):
                 record.treatment = data['treatment']
 
             db.session.commit()
-            return record.to_dict(), 200
+            rules = (
+                '-patient.medical_records', '-doctor.medical_records',
+                '-patient.user', '-doctor.user'
+            )
+            rec = record.to_dict(rules=rules)
+            rec['patient_name'] = record.patient.name if record.patient else None
+            rec['doctor_name'] = record.doctor.name if record.doctor else None
+            return rec, 200
         except IntegrityError as e:
             db.session.rollback()
             print(f"Integrity Error: {e}")
@@ -222,7 +210,6 @@ class MedicalRecordByID(Resource):
             print(f"Error updating medical record: {e}")
             return {'error': 'Internal server error: ' + str(e)}, 500
 
-    # Removed: @role_required(['admin']) # <--- REMOVED THIS DECORATOR
     @medical_ns.response(204, 'Deleted successfully')
     @medical_ns.response(404, 'Not found')
     @medical_ns.response(500, "Internal Server Error")

@@ -29,17 +29,16 @@ appointment_create_model = appointments_ns.model('AppointmentCreate', {
 @appointments_ns.route('/')
 class AppointmentList(Resource):
     @appointments_ns.doc('get_all_appointments')
-    @appointments_ns.marshal_list_with(appointment_model)
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def get(self):
         """Get all appointments"""
         appointments = Appointment.query.all()
-        return [appt.to_dict() for appt in appointments], 200
+        rules = (
+            '-patient', '-doctor',  # Prevent recursion by not serializing full related objects
+        )
+        return [appt.to_dict(rules=rules) for appt in appointments], 200
 
     @appointments_ns.doc('create_appointment')
     @appointments_ns.expect(appointment_create_model)
-    @appointments_ns.marshal_with(appointment_model, code=201)
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def post(self):
         """Create a new appointment"""
         data = request.get_json()
@@ -60,8 +59,6 @@ class AppointmentList(Resource):
             if not doctor:
                 return {'error': 'Doctor not found'}, 404
 
-            # Using .replace(tzinfo=None) to ensure comparison with naive datetime.utcnow()
-            # If your app handles timezones, use proper timezone-aware comparisons.
             appointment_date = datetime.fromisoformat(appointment_date_str)
             if appointment_date.replace(tzinfo=None) < datetime.utcnow():
                 return {'error': 'Appointment date cannot be in the past'}, 400
@@ -69,12 +66,17 @@ class AppointmentList(Resource):
             new_appt = Appointment(
                 patient_id=patient_id,
                 doctor_id=doctor_id,
-                date=appointment_date, # Assuming 'date' is the column name in your Appointment model
+                date=appointment_date,
                 status=status
             )
             db.session.add(new_appt)
             db.session.commit()
-            return new_appt.to_dict(), 201
+            rules = (
+                '-patient.appointments', '-doctor.appointments',
+                '-patient.user', '-doctor.user',
+                '-patient.medical_records', '-doctor.medical_records'
+            )
+            return new_appt.to_dict(rules=rules), 201
 
         except ValueError as ve:
             db.session.rollback()
@@ -91,26 +93,20 @@ class AppointmentList(Resource):
 @appointments_ns.param('id', 'The Appointment ID')
 class AppointmentByID(Resource):
     @appointments_ns.doc('get_appointment_by_id')
-    @appointments_ns.marshal_with(appointment_model)
-    # Removed: @role_required(['admin', 'doctor', 'patient', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def get(self, id):
         """Get a specific appointment by ID"""
         appointment = Appointment.query.get(id)
         if not appointment:
             return {'error': 'Appointment not found'}, 404
-
-        # Removed current_user-based access control checks as there is no JWT
-        # if current_user.role == 'patient' and current_user.patient_profile and current_user.patient_profile.id != appointment.patient_id:
-        #      return {"msg": "Access denied: Patients can only view their own appointments"}, 403
-        # if current_user.role == 'doctor' and current_user.doctor_profile and current_user.doctor_profile.id != appointment.doctor_id:
-        #     return {"msg": "Access denied: Doctors can only view their own appointments"}, 403
-
-        return appointment.to_dict(), 200
+        rules = (
+            '-patient.appointments', '-doctor.appointments',
+            '-patient.user', '-doctor.user',
+            '-patient.medical_records', '-doctor.medical_records'
+        )
+        return appointment.to_dict(rules=rules), 200
 
     @appointments_ns.doc('update_appointment')
     @appointments_ns.expect(appointment_create_model)
-    @appointments_ns.marshal_with(appointment_model)
-    # Removed: @role_required(['admin', 'doctor', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def patch(self, id):
         """Update an appointment by ID"""
         appointment = Appointment.query.get(id)
@@ -133,12 +129,17 @@ class AppointmentByID(Resource):
                 new_date = datetime.fromisoformat(data['appointment_date'])
                 if new_date.replace(tzinfo=None) < datetime.utcnow():
                     return {'error': 'Appointment date cannot be in the past'}, 400
-                appointment.date = new_date # Assuming 'date' is the column name in your Appointment model
+                appointment.date = new_date
             if 'status' in data:
                 appointment.status = data['status']
 
             db.session.commit()
-            return appointment.to_dict(), 200
+            rules = (
+                '-patient.appointments', '-doctor.appointments',
+                '-patient.user', '-doctor.user',
+                '-patient.medical_records', '-doctor.medical_records'
+            )
+            return appointment.to_dict(rules=rules), 200
 
         except ValueError as ve:
             db.session.rollback()
@@ -151,7 +152,6 @@ class AppointmentByID(Resource):
             return {'error': str(e)}, 500
 
     @appointments_ns.doc('delete_appointment')
-    # Removed: @role_required(['admin', 'department_manager']) # <--- REMOVED THIS DECORATOR
     def delete(self, id):
         """Delete an appointment by ID"""
         appointment = Appointment.query.get(id)

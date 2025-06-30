@@ -25,32 +25,29 @@ update_doctor_model = doctor_ns.model('UpdateDoctor', {
 
 @doctor_ns.route('/')
 class DoctorList(Resource):
-
-    # Removed: @role_required(['admin', 'department_manager', 'doctor']) # <--- REMOVED THIS DECORATOR
-    @doctor_ns.response(200, 'Success')
-    @doctor_ns.marshal_list_with(doctor_model)
     def get(self):
         """Get all doctors"""
         try:
             doctors = Doctor.query.all()
-            doctor_list = []
-            for doc in doctors:
-                doc_dict = doc.to_dict()
-                if doc.department:
-                    doc_dict['department_name'] = doc.department.name
-                doctor_list.append(doc_dict)
-            return doctor_list, 200
+            rules = (
+                '-appointments', '-medical_records', '-department', '-user'
+            )
+            # Only include flat fields, add department_name manually if needed
+            result = []
+            for d in doctors:
+                doc = d.to_dict(rules=rules)
+                doc['department_name'] = d.department.name if d.department else None
+                result.append(doc)
+            return result, 200
         except Exception as e:
             db.session.rollback()
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin', 'department_manager']) # <--- REMOVED THIS DECORATOR
     @doctor_ns.expect(doctor_model)
     @doctor_ns.response(201, 'Doctor created successfully')
     @doctor_ns.response(400, 'Missing or invalid data')
     @doctor_ns.response(404, 'Department not found')
     @doctor_ns.response(409, 'Integrity error')
-    @doctor_ns.marshal_with(doctor_model, code=201)
     def post(self):
         """Create a new doctor"""
         try:
@@ -75,8 +72,10 @@ class DoctorList(Resource):
             )
             db.session.add(new_doctor)
             db.session.commit()
-
-            return new_doctor.to_dict(), 201
+            rules = (
+                '-appointments', '-medical_records', '-department.doctors', '-user.doctor_profile'
+            )
+            return new_doctor.to_dict(rules=rules), 201
         except ValueError as ve:
             db.session.rollback()
             return {'error': str(ve)}, 400
@@ -90,11 +89,8 @@ class DoctorList(Resource):
 
 @doctor_ns.route('/<int:id>')
 class DoctorByID(Resource):
-
-    # Removed: @role_required(['admin', 'department_manager', 'doctor', 'patient']) # <--- REMOVED THIS DECORATOR
     @doctor_ns.response(200, 'Success')
     @doctor_ns.response(404, 'Doctor not found')
-    @doctor_ns.marshal_with(doctor_model)
     def get(self, id):
         """Get a doctor by ID"""
         try:
@@ -102,26 +98,20 @@ class DoctorByID(Resource):
             if not doctor:
                 return {'error': 'Doctor not found'}, 404
 
-            # Removed current_user role-based access checks as there's no JWT
-            # if current_user.role == 'patient' and current_user.patient and current_user.patient.id != doctor.id:
-            #     return {"msg": "Access denied: Patients can only view their own records"}, 403
-            # if current_user.role == 'doctor' and current_user.doctor and current_user.doctor.id != doctor.id:
-            #     return {"msg": "Access denied: Doctors can only view their own records"}, 403
-
-
-            doc_dict = doctor.to_dict()
-            if doctor.department: # Assuming 'doc' should be 'doctor' here based on your previous code
+            rules = (
+                '-appointments', '-medical_records', '-department.doctors', '-user.doctor_profile'
+            )
+            doc_dict = doctor.to_dict(rules=rules)
+            if doctor.department:
                 doc_dict['department_name'] = doctor.department.name
             return doc_dict, 200
         except Exception as e:
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin', 'department_manager']) # <--- REMOVED THIS DECORATOR
     @doctor_ns.expect(update_doctor_model)
     @doctor_ns.response(200, 'Doctor updated successfully')
     @doctor_ns.response(404, 'Doctor or department not found')
     @doctor_ns.response(409, 'Conflict: integrity error')
-    @doctor_ns.marshal_with(doctor_model)
     def patch(self, id):
         """Update a doctor by ID"""
         try:
@@ -143,7 +133,10 @@ class DoctorByID(Resource):
                 doctor.user_id = data['user_id']
 
             db.session.commit()
-            return doctor.to_dict(), 200
+            rules = (
+                '-appointments', '-medical_records', '-department.doctors', '-user.doctor_profile'
+            )
+            return doctor.to_dict(rules=rules), 200
         except ValueError as ve:
             db.session.rollback()
             return {'error': str(ve)}, 400
@@ -154,7 +147,6 @@ class DoctorByID(Resource):
             db.session.rollback()
             return {'error': str(e)}, 500
 
-    # Removed: @role_required(['admin']) # <--- REMOVED THIS DECORATOR
     @doctor_ns.response(204, 'Doctor deleted')
     @doctor_ns.response(404, 'Doctor not found')
     def delete(self, id):

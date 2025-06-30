@@ -15,8 +15,8 @@ const api = {
       let errorData;
       try {
         errorData = await res.json();
-      } catch (_) { // changed from (e) to (_) to indicate unused variable
-        errorData = await res.text();
+      } catch (error) { // changed from (e) to (_) to indicate unused variable
+        errorData = await res.text(error);
       }
 
       let errorMessage = `Request failed: Status ${res.status}`;

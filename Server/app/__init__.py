@@ -46,7 +46,7 @@ def create_app():
     api.add_namespace(doctor_ns, path="/doctors/")
     api.add_namespace(department_ns, path="/departments/")
     api.add_namespace(appointments_ns, path="/appointments/")
-    api.add_namespace(medical_ns, path="/medical-records/")
+    api.add_namespace(medical_ns, path="/medical_records/")
 
     with app.app_context():
         from . import models
