@@ -195,3 +195,5 @@ Special thanks to Moringa School for their mentorship and guidance.
 
 📄 License
 Distributed under the MIT License.
+
+## Project Link ```https://github.com/natalie-gichuki/Hospital-Management-System-FullStack.git```

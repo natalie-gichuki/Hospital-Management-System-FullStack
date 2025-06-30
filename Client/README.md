@@ -59,7 +59,7 @@ Client/
 
 
 ## Clone the repository:
-git clone https://github.com/yourusername/hospital-management-frontend.git
+git clone https://github.com/natalie-gichuki/Hospital-Management-System-FullStack.git
 cd hospital-management-frontend
 
 
@@ -140,4 +140,4 @@ Project was built by
 *** Natalie Gichuki ***
 *** Kihikah Kariuki ***
 
-Project Link: 
+Project Link: https://github.com/natalie-gichuki/Hospital-Management-System-FullStack.git
