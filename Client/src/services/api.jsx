@@ -1,7 +1,7 @@
 // Purpose: Defines the base URL for your backend API.
 // import.meta.env.VITE_API_BASE_URL: Tries to load the value from your environment (e.g., .env file).
 // Fallback: If nothing is defined, it defaults to 'http://127.0.0.1:5555'.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5555';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
 
 
 // Sets default headers to send with every request.

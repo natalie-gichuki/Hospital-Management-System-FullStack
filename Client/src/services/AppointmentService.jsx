@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5555/appointments/';
+const BASE_URL = 'http://localhost:5000/appointments/';
 
 export const getAppointments = async () => {
   const res = await fetch(BASE_URL);
